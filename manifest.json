@@ -1,0 +1,70 @@
+{
+    "id": "com.krice.kitchensink",
+    "name": "Kitchen Sink 2",
+    "version": "2.2.1",
+    "author": "JK O'Donoghue",
+    "host": {
+        "app": "XD",
+        "minVersion": "24.0"
+    },
+    "summary": "Kitchen sink of plugin capabilities",
+    "description": "Kitchen Sink is a group of several plugins to test plugin capabilites. More details to follow.",
+    "helpUrl": "https://www.adobe.com",
+    "languages": [
+        "en",
+        "de",
+        "fr"
+    ],
+    "uiEntryPoints": [
+        {
+            "type": "menu",
+            "label": {
+                "default": "Selection Menu",
+                "en": "The Selection Menu",
+                "de": "Der Selection Menuu",
+                "es": "El Selection Menu"
+            },
+            "commandId": "selectionMenu"
+        },
+        {
+            "type": "panel",
+            "label": "Element Details Panel",
+            "panelId": "elementDetailsPanel"
+        },
+        {
+            "type": "panel",
+            "label": "Selection Panel",
+            "panelId": "selectionPanel"
+        },
+        {
+            "type": "panel",
+            "label": "Interactions Panel",
+            "panelId": "interactionsPanel",
+            "shortcut": { "mac": "Ctrl+Shift+i", "win": "Ctrl+Shift+i" }
+        },
+        {
+            "type": "panel",
+            "label": "Change Tracker Panel",
+            "panelId": "changeTrackerPanel"
+        },
+        {
+            "type": "panel",
+            "label": "Selection Renditions",
+            "panelId": "showSelectionRendition",
+            "shortcut": { "mac": "Ctrl+Shift+r", "win": "Ctrl+Shift+r" }
+        },
+        {
+            "type": "panel",
+            "label": "Preview Interactions",
+            "panelId": "previewInteractions",
+            "shortcut": { "mac": "Ctrl+Shift+y", "win": "Ctrl+Shift+y" }
+        }
+    ],
+    "icons": [
+        { "width": 24, "height": 24, "path": "icons/icon_24.png" },
+        { "width": 48, "height": 48, "path": "icons/icon_48.png" },
+        { "width": 96, "height": 96, "path": "icons/icon_96.png" },
+        { "width": 144, "height": 144, "path": "icons/icon_144.png" },
+        { "width": 192, "height": 192, "path": "icons/icon_192.png" }
+    ]
+}
