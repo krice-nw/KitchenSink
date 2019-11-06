@@ -5,6 +5,8 @@ const changeTracker = require("./changeTracker");
 const showSelectionRendition = require("./showSelectionRendition");
 const elementDetails = require("./elementDetails");
 const previewInteractions =require("./previewInteractions");
+const socketClient = require("./socketClient");
+
 
 const sg = require("scenegraph");
 const cmd = require("commands");
@@ -310,6 +312,7 @@ function showOurDialog() {
 var elementDetailsUI;
 var interactionsTestUI;
 var changeTrackerUI;
+var socketClientUI;
 
 module.exports = {
     commands: {
@@ -429,6 +432,30 @@ module.exports = {
             update(sel, root) {
                 console.log("Updating Kitchen Sink: previewInteractions Panel");
                 previewInteractions.update();
+            }
+        },
+        socketClientPanel: {
+            show(event) {
+                console.log("Show: socketClient Panel");
+
+                if (!socketClientUI) {
+                    socketClientUI = socketClient.createPanel();
+                    //event.node.appendChild(interactionsTestUI);
+
+                    // connect to the webSocket service
+                    // connectToServer();
+                }
+                event.node.appendChild(socketClientUI);
+            },
+            /**/
+            hide(event) {
+                console.log("Hiding socketClient Panel");
+                socketClientUI.remove();
+            },
+            /**/
+            update(selection, root) {
+                console.log("Updating socketClient Panel");
+                socketClient.updatePanel(selection, root, socketClientUI);
             }
         }
     }

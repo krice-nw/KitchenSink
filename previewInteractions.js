@@ -216,12 +216,15 @@ async function getPreviewItems() {
     }
 */
 
-/*
+
     //
-    let doc = application.currentDocument;
-    console.log("Doc guid: " + doc.guid);
-    console.log("Doc title: " + doc.title);
-*/
+    if (application.version > "25") {
+        console.log(application.version + " is gretaer than 25");
+        let doc = application.activeDocument;
+        console.log("Doc guid: " + doc.guid);
+        console.log("Doc title: " + doc.name);    
+    }
+
 
     let imageFiles = await getPreviewRenditions(previewRenditions);
     console.log("Have images");

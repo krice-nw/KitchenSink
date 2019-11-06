@@ -58,6 +58,12 @@
             "label": "Preview Interactions",
             "panelId": "previewInteractions",
             "shortcut": { "mac": "Ctrl+Shift+y", "win": "Ctrl+Shift+y" }
+        },
+        {            
+            "type": "panel",
+            "label": "socketClient",
+            "panelId": "socketClientPanel",
+            "shortcut": { "mac": "Ctrl+Shift+c", "win": "Ctrl+Shift+c" }
         }
     ],
     "icons": [
