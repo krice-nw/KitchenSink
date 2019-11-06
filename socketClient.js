@@ -4,6 +4,7 @@ const { root, selection, BooleanGroup, Text, Artboard } = require("scenegraph")
 let renditionTimer;
 
 var wsClient;
+let connectedToServer = false;
 
 exports.createPanel = function() {
     console.log("In createPanel");  
@@ -74,6 +75,10 @@ exports.createPanel = function() {
     rootNode.querySelector("form").addEventListener("submit", exec);
 
     function register() {
+        if (connectedToServer) {
+            console.log("All ready registered");
+            return;
+        }
         var name = rootNode.querySelector("#name").value;
         console.log("Name: " + name);
 
@@ -121,6 +126,18 @@ exports.updatePanel = async function(selection, rootNode, panelUI) {
     console.log("In socketClient updatePanel");
 
     let registerButton = document.querySelector("#register");
+}
+
+exports.connectToSocketServer = function() {
+    console.log("In connectToSocketServer");
+
+    if (application.version > "25") {
+        console.log(application.version + " is greater than 25");
+        let uuid = application.activeDocument.guid;
+        let name = application.activeDocument.name;     
+        // connect to the webSocket service
+        connectToServer(uuid, name);
+    }
 }
 
 async function getArtboardItems() {
@@ -246,6 +263,7 @@ function connectToServer(uuid, name) {
 
     wsClient.onopen = function () {
         console.log("Connection openned");
+        connectedToServer = true;
         // can I send a message here? ... yes
         wsClient.send(JSON.stringify({"guid":uuid, "name":name}));
     };
@@ -264,6 +282,10 @@ function connectToServer(uuid, name) {
         }
     });
 
+    wsClient.onclose = function() {
+        console.log("Connection closed");
+        connectedToServer = false;
+    }
     /*
     try {
         client = new WebSocket(url, 'echo-protocol');

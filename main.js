@@ -443,7 +443,7 @@ module.exports = {
                     //event.node.appendChild(interactionsTestUI);
 
                     // connect to the webSocket service
-                    // connectToServer();
+                    socketClient.connectToSocketServer();
                 }
                 event.node.appendChild(socketClientUI);
             },
