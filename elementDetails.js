@@ -511,13 +511,9 @@ function getNodeInfo(node, getChildren) {
     const ImageFill = require("scenegraph").ImageFill;
     if (node.fillEnabled && node.fill instanceof ImageFill){
         console.log("We have an imageFill");
-        if (node.fill instanceof Entry) {
-            console.log("We have an FS Entry");
-        }
-        //let uxpImageFile = new fs.Entry(node.fill);
+        // woufl be great if we could get the UXP Entry from this ....
+        // let uxpImageFile = new fs.Entry(node.fill);
         console.log(node.fill.name);
-        console.log(uxpImageFile.url);
-        console.log(uxpImageFile.nativePath);
     } else {
         console.log("No imageFill");
     }
