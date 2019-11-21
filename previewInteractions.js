@@ -571,9 +571,11 @@ artboardDiv.setAttribute("backgroundImage", `data:image/png;base64,${renditions[
                         if (state.triggeredInteractions[0].trigger.type === "hover") {
                             nodeDiv.addEventListener("mouseenter", e => {
                                 e.target.src = `data:image/png;base64,${renditions[state.triggeredInteractions[0].action.destination.guid]}`;
+                                e.target.style.setProperty('cursor', 'pointer');
                             });
                             nodeDiv.addEventListener("mouseleave", e => {
                                 e.target.src = `data:image/png;base64,${renditions[state.guid]}`;
+                                e.target.style.setProperty('cursor', 'auto');
                             });
                         } 
                         if (state.triggeredInteractions[0].trigger.type === "tap") {
@@ -601,6 +603,7 @@ artboardDiv.setAttribute("backgroundImage", `data:image/png;base64,${renditions[
                 if (artboardObj[i].triggeredInteractions[0].trigger.type === "hover") {
                     console.log("Hover action");
                     artboardChild.addEventListener("mouseenter", e => {
+                        e.target.style.setProperty('cursor', 'pointer');
                         //setAttribute("src", `data:image/png;base64,${renditions[artboardObj[i+1].guid]}`);
                         e.target.src = `data:image/png;base64,${renditions[artboardObj[i+1].guid]}`;
     //                    e.target.addEventListener("click", e => {
@@ -608,6 +611,7 @@ artboardDiv.setAttribute("backgroundImage", `data:image/png;base64,${renditions[
     //                    })
                     });
                     artboardChild.addEventListener("mouseleave", e => {
+                        e.target.style.setProperty('cursor', 'auto');
                         //setAttribute("src", `data:image/png;base64,${renditions[artboardObj[i+1].guid]}`);
                         e.target.src = `data:image/png;base64,${renditions[artboardObj[i].guid]}`;
                     });
