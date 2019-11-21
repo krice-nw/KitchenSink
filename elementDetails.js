@@ -513,9 +513,27 @@ function getNodeInfo(node, getChildren) {
         console.log("We have an imageFill");
         // woufl be great if we could get the UXP Entry from this ....
         // let uxpImageFile = new fs.Entry(node.fill);
-        console.log(node.fill.name);
+        console.log(node.fill);
     } else {
         console.log("No imageFill");
+    }
+
+    //const LinearGradientFill = require("LinearGradientFill");
+    const LinearGradientFill = require("scenegraph").LinearGradient;
+    if (node.fillEnabled && node.fill instanceof LinearGradientFill){
+        console.log("We have a LinearGradientFill");
+        console.log(JSON.stringify(node.fill));
+    } else {
+        console.log("No LinearGradientFill");
+    }
+
+    //const RadialGradientFill = require("RadialGradientFill");
+    const RadialGradientFill = require("scenegraph").RadialGradient;
+    if (node.fillEnabled && node.fill instanceof RadialGradientFill){
+        console.log("We have a RadialGradientFill");
+        console.log(JSON.stringify(node.fill));
+    } else {
+        console.log("No RadialGradientFill");
     }
 
     if (detailsObj.type === "symbol") {

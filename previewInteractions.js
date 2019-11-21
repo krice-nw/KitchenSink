@@ -4,13 +4,7 @@ const { root, selection, BooleanGroup, Text, Artboard, SymbolInstance } = requir
 let renditionTimer;
 
 var previewInteractionsPanel;
-
-function create() {
-    const HTML =
-        `<style>
-            .parent {
-                margin-left: 20%;
-            }
+/*
             .container {
                 display: flex;
                 flex-direction: column;
@@ -19,10 +13,31 @@ function create() {
             }
             img {
                 flex: 1 1 auto;
-                width: 100px;
+                width: 100%;
                 margin: auto;
                 margin-bottom: 10px;
                 draggable: true;
+            }
+            .c7df0022-6473-4016-ac23-da7ac2ef1a40 { left: 279.5px; top: 604.5px;}
+*/
+function create() {
+    const HTML =
+        `<style>
+            .parent {
+                position: relative;
+                margin-left: 20%;
+            }
+            .container {
+                position: relative;
+                margin: auto;
+            }
+            .artboard {
+                position: relative;
+            }
+            .child {
+                position: absolute;
+                top: 25px;
+                left: 25px;
             }
             form {
                 width:90%;
@@ -417,8 +432,15 @@ artboardDiv.setAttribute("backgroundImage", `data:image/png;base64,${renditions[
     //artboard.setAttribute("height", artboardObj[0].localBounds.height);
     //artboard.setAttribute("src", `data:image/png;base64,${artboardObj[0].image}`);
     artboard.setAttribute("src", `data:image/png;base64,${renditions[artboardObj[0].guid]}`);
-    //artboard.setAttribute("width", artboardObj[0].localBounds.width);
-    //artboard.setAttribute("height", artboardObj[0].localBounds.height);
+    artboard.setAttribute("width", artboardObj[0].localBounds.width);
+    artboard.setAttribute("height", artboardObj[0].localBounds.height);
+
+    artboard.setAttribute("left", 0);
+    artboard.setAttribute("top", 0);
+
+    artboard.setAttribute("position", "relative");
+    artboard.setAttribute("class", "artboard");
+
 
     // see if the artboard has interactions
     if (artboardObj[0].triggeredInteractions.length > 0) {
@@ -455,6 +477,40 @@ artboardDiv.setAttribute("backgroundImage", `data:image/png;base64,${renditions[
             let nodeImg = document.createElement("img");
             nodeImg.setAttribute("id", artboardObj[i].guid);
             nodeImg.src = `data:image/png;base64,${renditions[artboardObj[i].guid]}`;
+            //
+            console.log(artboardObj[i].name + "bounds: " + JSON.stringify(artboardObj[i].boundsInParent));
+            //nodeImg.left = artboardObj[i].boundsInParent.x;
+            let left =artboardObj[i].boundsInParent.x + "px";
+            console.log("left: " + left);
+            nodeImg.style.setProperty("left", left);
+            //nodeImg.top = artboardObj[i].boundsInParent.y;
+            let top =artboardObj[i].boundsInParent.y + "px";
+            console.log("top: " + top);
+            nodeImg.style.setProperty("top", top);
+            nodeImg.width = artboardObj[i].boundsInParent.width;
+            nodeImg.height = artboardObj[i].boundsInParent.height;
+        //    nodeImg.setAttribute("width", artboardObj[i].boundsInParent.width);
+        //    nodeImg.setAttribute("height", artboardObj[i].boundsInParent.height);
+            nodeImg.setAttribute("class", "child");
+
+            // try creaeing and addign a new class that sets the elements top and left attributes
+            if (document.styleSheets.length > 0) {
+                console.log("We have " + document.styleSheets.length + " styes!");
+
+                let className = artboardObj[i].guid;
+                let newStyle = "." + className + " { left: " + artboardObj[i].boundsInParent.x + "px; top: " + artboardObj[i].boundsInParent.y + "px;}";
+                console.log(newStyle);
+
+                let style = document.createElement('style');
+                style.type = 'text/css';
+                style.innerHTML = newStyle;
+                document.getElementsByTagName('head')[0].appendChild(style);
+
+                //document.styleSheets.insertRule(newStyle);
+                //document.styleSheets.addRule("." + className, "left: " + artboardObj[i].boundsInParent.x + "px; top: " + artboardObj[i].boundsInParent.y + "px;");
+                console.log("We have now have " + document.styleSheets.length + " styes!");
+                nodeImg.setAttribute("class", "child " + className);
+            }
 
             if (artboardObj[i].triggeredInteractions.length > 0) {
                 if (artboardObj[i].triggeredInteractions[0].trigger.type === "tap") {
@@ -471,6 +527,7 @@ artboardDiv.setAttribute("backgroundImage", `data:image/png;base64,${renditions[
             }
 
             images.appendChild(nodeImg);
+            //artboard.appendChild(nodeImg);
         }
         if (application.version > "25") {
             if (artboardObj[i].isDefaultState) {
@@ -483,6 +540,25 @@ artboardDiv.setAttribute("backgroundImage", `data:image/png;base64,${renditions[
                 let nodeDiv = document.createElement("img");
                 nodeDiv.setAttribute("id", artboardObj[i].guid);
                 nodeDiv.src = `data:image/png;base64,${renditions[artboardObj[i].guid]}`;
+                console.log(artboardObj[i].name + "bounds: " + JSON.stringify(artboardObj[i].boundsInParent));
+                //nodeDiv.left = artboardObj[i].boundsInParent.x;
+                //nodeDiv.top = artboardObj[i].boundsInParent.y;
+
+                let left =artboardObj[i].boundsInParent.x + "px";
+                console.log("left: " + left);
+                //nodeDiv.style.setProperty("left", left);
+                nodeDiv.style.left = left;
+                //nodeImg.top = artboardObj[i].boundsInParent.y;
+                let top =artboardObj[i].boundsInParent.y + "px";
+                console.log("top: " + top);
+                //nodeDiv.style.setProperty("top", top);
+                nodeDiv.style.top = top;
+    
+                nodeDiv.width = artboardObj[i].boundsInParent.width;
+                nodeDiv.height = artboardObj[i].boundsInParent.height;
+                //nodeDiv.setAttribute("position", "absolute");
+                nodeDiv.setAttribute("class", "child");
+
                 artboardObj[i].statesArray.forEach(state => {
                     //console.log("State to handle: " + state);
                     if (state.triggeredInteractions.length > 0) {
