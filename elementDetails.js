@@ -389,20 +389,12 @@ exports.updatePanel = function(selection, rootNode, panelUI) {
         gContext = selection.editContext;
         gSelection = selection.items;
         let testItems = document.getElementById("test-area");
-        let focusedElement = document.hasFocus;
         let activeElement = document.activeElement;
         while (testItems.firstChild) {
             testItems.removeChild(testItems.firstChild);
         }
 
         populateNodeEditArea(selection);
-        if (focusedElement) {
-            console.log("Focused element: " + focusedElement.id);
-            let elementForFocus = document.getElementById(focusedElement.id);
-            if (elementForFocus) {
-                elementForFocus.focus();
-            }
-        }
         if(activeElement) {
             console.log("Active element: " + activeElement.id);
             let elementForFocus = document.getElementById(activeElement.id);
@@ -410,54 +402,6 @@ exports.updatePanel = function(selection, rootNode, panelUI) {
                 elementForFocus.focus();
             }
         }
-    }
-return;
-    let selectionRadio = document.getElementById("selectionRadioButton");
-    // if we have a selection enable selection radio 
-    // if no other radio checked - check selection
-    if (selection.items.length > 0) {
-        console.log("Set selection radio disabled to false");
-        selectionRadio.disabled = false;
-        //selectionRadio.setAttribute("disabled", false);
-        if (! radioGroupHasSelection()) {
-            console.log("Set selection radio checked to true");
-            //selectionRadio.setAttribute("checked", true);
-            selectionRadio.checked = true;
-        }
-        // as a radio is selected enable the button
-        document.getElementById("detailButton").disabled = false;
-    } else {
-        // if no selection and selection radio checked - uncheck it
-        // then disable it
-        if (selectionRadio.checked) {
-            console.log("Set selection radio checked to false");
-            //selectionRadio.setAttribute("checked", false);
-            selectionRadio.checked = false;
-        }
-        console.log("Set selection radio disabled to true");
-        selectionRadio.disabled = true;
-        //selectionRadio.setAttribute("disabled", true);
-
-        if (radioGroupHasSelection()) {
-            // as a radio is selected enable the button
-            document.getElementById("detailButton").disabled = false;
-        } else {
-            // as a radio is not selected disable the button
-            document.getElementById("detailButton").disabled = true;
-        }
-    }
-
-
-    function radioGroupHasSelection(){
-        console.log("In radioGroupHasSelection");
-        let hasSelection = false;
-        // iterate over the radio input items 
-        document.getElementsByClassName("radio").forEach((radioInput) => {
-            if (radioInput.checked) {
-                hasSelection = true;
-            }
-        })
-        return hasSelection;
     }
 }
 
