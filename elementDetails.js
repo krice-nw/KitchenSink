@@ -4,6 +4,9 @@ const np = require("./nodeProperties");
 
 const {root, Artboard} = require("scenegraph");
 
+let gContext = undefined;
+let gSelection = undefined;
+
 exports.createPanel = function() {
     console.log("In elementDetails createPanel");    
 
@@ -79,7 +82,7 @@ exports.createPanel = function() {
     <button id="detailButton">Get Details</button>
 
     <hr/>
-
+<!--
     <textarea id="detailText" rows="10" columns="20"></textarea>
 
     <div id="logs">
@@ -155,8 +158,23 @@ exports.createPanel = function() {
     <hr/>
     <div id="images"></div>
     <hr/>
+-->
+    <div id="test-area">Test</div>
 
-    <div>Test</div>`;
+    <hr/>
+
+    <div id="logs">
+    This is a test
+    </div>
+
+    <hr/>
+    
+    <div id="nodeDetails">
+    This is a test
+    </div>`;
+
+    
+
 
 /* 
     Appears I only receive the change event if the radio is checked, not when unchecked
@@ -252,6 +270,7 @@ exports.createPanel = function() {
    
     container.querySelector("#detailButton").addEventListener("click", getElementDetails);
 
+    /*
     // button
     container.querySelector("#buttonTest").addEventListener("click", handleEvent);
     //container.querySelector("#buttonTest").addEventListener("editXD", handleEvent);
@@ -314,6 +333,7 @@ exports.createPanel = function() {
     });
 
     container.querySelector('#create_Renditions').addEventListener("click", createNodeRenditions);
+    */
     /*
     container.querySelector('#create_Renditions').addEventListener("click", function(event) {
         const {selection} = require("scenegraph");
@@ -343,6 +363,39 @@ exports.createPanel = function() {
 
 exports.updatePanel = function(selection, rootNode, panelUI) {
     console.log("In elementDetails updatePanel");
+
+    // remove the test area nodes
+    // really just need to do this if the selection changes (or maybe edit context change)
+    // as i utileze the selection - need to base oin that chnaging
+    //if (selection.editContext != gContext) {
+        /*
+    let updateEditNodes = false;
+    selection.items.forEach(sel => {
+        gSelection.forEach(prevSel => {
+            if (sel != prevSel) {
+                console.log("Found a selection difference");
+                updateEditNodes = true;
+            }
+        })
+    })
+    if(updateEditNodes) {
+        console.log("Update edit nodes");
+    } else {
+        console.log("Selection unchanged");
+    }
+        */
+    if (selection.items != gSelection) {
+        console.log("Selection changed - update the test area");
+        gContext = selection.editContext;
+        gSelection = selection.items;
+        let testItems = document.getElementById("test-area");
+        while (testItems.firstChild) {
+            testItems.removeChild(testItems.firstChild);
+        }
+
+        populateNodeEditArea(selection);
+    }
+return;
     let selectionRadio = document.getElementById("selectionRadioButton");
     // if we have a selection enable selection radio 
     // if no other radio checked - check selection
@@ -413,7 +466,27 @@ function getElementDetails() {
 function getDetails(requestedElement, includeChildren = false) {
     console.log("In getDetails: " + requestedElement + ", include childre: " + includeChildren);
 
-    var details;
+    
+   
+    const app = require("application");
+app.editDocument({"editLabel":"Add Polygon"}, () => {
+
+    const {Polygon, Color, selection} = require("scenegraph");
+    //let selecion = require("scenegraph").selection;
+
+    var polygon = new Polygon();
+    polygon.cornerCount = 5;
+    polygon.starRatio = 55;
+    polygon.setAllCornerRadii(15);
+    polygon.width = 100;
+    polygon.height = 100;
+    polygon.fill = new Color("red");
+
+    selection.insertionParent.addChild(polygon);
+    selection.items = [polygon];
+});
+    
+var details;
     switch (requestedElement) {
         case "rootRadioButton":
             console.log("getDeatils for the root element");
@@ -441,9 +514,374 @@ function getDetails(requestedElement, includeChildren = false) {
     let nodeObject = serializeNode(selection.items[0], includeChildren);
     console.log("Serialized node (include childre: " + includeChildren + "): " + JSON.stringify(nodeObject));
     document.getElementById('nodeDetails').innerHTML = JSON.stringify(nodeObject);
+/*
+    // see about add the node deatils into a set of UI feilds to edit the content?
+    const {Rectangle, Ellipse, Polygon, Line, Text, Group, SymbolInstance, RepeatGrid, Artboard} = require("scenegraph");
+    selection.items.forEach((node) => {
+        let nodeType = undefined;
+        if (node instanceof Polygon) {
+            nodeType = "Polygon";
+            let nodeEditDiv = document.createElement("div");
+            let nodeEditLable = document.createElement("span");
+            nodeEditLable.innerHTML = nodeType;
+            nodeEditDiv.appendChild(nodeEditLable);
 
+            nodeEditDiv.appendChild(createRow("Width:", node.width));
+            nodeEditDiv.appendChild(createRow("Height:", node.height));
+            nodeEditDiv.appendChild(createRow("Corners:", node.cornerCount));
+            nodeEditDiv.appendChild(createRow("Radii:", node.cornerRadii[0]));
+            nodeEditDiv.appendChild(createRow("Ratio:", node.starRatio));
+
+            let updateNodeButton = document.createElement("button");
+            updateNodeButton.setAttribute("id", "updateNodeButton");
+            updateNodeButton.innerHTML = "Update";
+            updateNodeButton.disabled = true;
+            updateNodeButton.addEventListener("click", (e) => {
+                console.log("Update the node");
+
+                const app = require("application");
+                app.editDocument({"editLabel":"Update " + nodeType}, () => {
+                    node.width = parseFloat(document.getElementById("Width:").value);
+                    node.height = parseFloat(document.getElementById("Height:").value);
+                    node.cornerCount = parseFloat(document.getElementById("Corners:").value);
+                    node.setAllCornerRadii(parseFloat(document.getElementById("Radii:").value));
+                    node.starRatio = parseFloat(document.getElementById("Ratio:").value);
+                });
+        
+                e.target.disabled = true;   // still acts as active once after the click
+            });
+            nodeEditDiv.appendChild(updateNodeButton);
+
+            nodeEditDiv.addEventListener("change", (e) => {
+                console.log("something changed - see if we should enable update");
+                if ((document.getElementById("Width:").value != node.width) ||
+                    (document.getElementById("Height:").value != node.height) ||
+                    (document.getElementById("Corners:").value != node.cornerCount) ||
+                    (document.getElementById("Radii:").value != node.cornerRadii[0]) ||
+                    (document.getElementById("Ratio:").value != node.starRatio)) {
+                        console.log("Enable the button");
+                        document.getElementById("updateNodeButton").disabled = false;
+                } else {
+                    console.log("Disable the button");
+                    document.getElementById("updateNodeButton").disabled = true;
+                }   
+            });
+
+            document.getElementById("test-area").appendChild(nodeEditDiv);
+        }
+    });
+
+    function createRow(label, value) {
+        // <label><span>Height:</span><input type="text" /></label>
+        let row = document.createElement("label");
+        row.setAttribute("class", "row");
+        let rowLabel = document.createElement("span");
+        rowLabel.innerHTML = label;
+        row.appendChild(rowLabel);
+        let input = document.createElement("input");
+        input.setAttribute("type", "text");
+        input.id = label;
+        input.value = value;
+        row.appendChild(input);
+
+        console.log(input.id);
+        return row;
+    }
+*/
 }
 
+
+function populateNodeEditArea(selection) {
+    console.log("In populateNodeEditArea");
+
+    const {GraphicNode} = require("scenegraph");
+
+    // see about add the node deatils into a set of UI feilds to edit the content?
+    let firstNodeType = undefined;
+    selection.items.forEach((node) => {
+        let nodeType = getNodeType(node);
+        if (nodeType === "artboard") {
+            console.log("Artborad selections not supported");
+            return;
+        }
+        if (! firstNodeType) {
+            firstNodeType = nodeType;
+        }
+
+        if (nodeType === firstNodeType) {
+            console.log("Same node type: " + firstNodeType);
+        } else {
+            console.log("Node type: " + nodeType + ", does not match: " + firstNodeType);
+        }
+
+        let nodeEditDiv = document.createElement("div");
+        let nodeEditLable = document.createElement("span");
+        nodeEditLable.innerHTML = nodeType;
+        nodeEditDiv.appendChild(nodeEditLable);
+
+        nodeEditDiv.appendChild(createRow("Width:", node.width));
+        nodeEditDiv.appendChild(createRow("Height:", node.height));
+        // fill
+        nodeEditDiv.appendChild(createRow("Fill", node.fillEnabled, "checkbox"));
+        // stroke
+        let strokePositionOptions = [GraphicNode.INNER_STROKE, GraphicNode.OUTER_STROKE, GraphicNode.CENTER_STROKE];
+        let strokeEndCapsOptions = [GraphicNode.STROKE_CAP_NONE, GraphicNode.STROKE_CAP_SQUARE, GraphicNode.STROKE_CAP_ROUND];
+        let strokeJoinsOptions = [GraphicNode.STROKE_JOIN_BEVEL, GraphicNode.STROKE_JOIN_ROUND, GraphicNode.STROKE_JOIN_MITER];
+
+        nodeEditDiv.appendChild(createRow("Stroke", node.strokeEnabled, "checkbox"));
+        nodeEditDiv.appendChild(createRow("Stroke Width", node.strokeWidth));  
+        nodeEditDiv.appendChild(createRadioGroup("Stroke Position", node.strokePosition, strokePositionOptions));
+        nodeEditDiv.appendChild(createRadioGroup("Stroke End Caps", node.strokeEndCaps, strokeEndCapsOptions));
+        nodeEditDiv.appendChild(createRadioGroup("Stroke Joins", node.strokeJoins, strokeJoinsOptions));  
+
+//        nodeEditDiv.appendChild(createRow("Stroke miter limit", node.strokeMiterLimit));
+/*
+        let strokeDashArray = node.strokeDashArray;
+        let dash = strokeDashArray.length > 0 ? strokeDashArray[0] : 0;
+        nodeEditDiv.appendChild(createRow("Dash", dash));
+        let gap = strokeDashArray.length > 1 ? strokeDashArray[1] : 0;
+        nodeEditDiv.appendChild(createRow("Gap", gap));
+        nodeEditDiv.appendChild(createRow("Stroke dash offset", node.strokeDashOffset));
+*/
+
+        if (nodeType === "polygon") {
+            nodeEditDiv.appendChild(createRow("Corners:", node.cornerCount));
+            nodeEditDiv.appendChild(createRow("Radii:", node.cornerRadii[0]));
+            nodeEditDiv.appendChild(createRow("Ratio:", node.starRatio));
+        }
+
+        let updateNodeButton = document.createElement("button");
+        updateNodeButton.setAttribute("id", "updateNodeButton");
+        updateNodeButton.innerHTML = "Update";
+        updateNodeButton.disabled = true;
+        updateNodeButton.addEventListener("click", (e) => {
+            console.log("Update the node");
+
+            const app = require("application");
+            app.editDocument({"editLabel":"Update " + nodeType}, () => {
+                node.width = parseFloat(document.getElementById("Width:").value);
+                node.height = parseFloat(document.getElementById("Height:").value);
+                node.fillEnabled = document.getElementById("Fill").checked;
+                node.strokeEnabled = document.getElementById("Stroke").checked;
+
+                node.strokeWidth = parseFloat(document.getElementById("Stroke Width").value);
+
+                let positionRadioGroup = document.getElementById("Stroke Position");
+                strokePositionOptions.forEach(option => {
+                    //let control = document.getElementById(positionOption)
+                    let control = positionRadioGroup.querySelector("#" + option);
+                    console.log("Control: " + control);
+                    if (control.checked) {
+                        console.log("Set strokePosition: " + option)
+                        node.strokePosition = option;
+                    }
+                });
+
+                let endCapsRadioGroup = document.getElementById("Stroke End Caps");
+                strokeEndCapsOptions.forEach(option => {
+                    //let control = document.getElementById(option)
+                    let control = endCapsRadioGroup.querySelector("#" + option);
+                    if (control.checked) {
+                        console.log("Set strokeEndCapsOptions: " + option)
+                        node.strokeEndCaps = option;
+                    }
+                });
+
+                let joinsRadioGroup = document.getElementById("Stroke Joins");
+                strokeJoinsOptions.forEach(option => {
+                    //let control = document.getElementById(option);
+                    let control = joinsRadioGroup.querySelector("#" + option);
+                    if (control.checked) {
+                        console.log("Set strokeJoinsOptions: " + option);
+                        node.strokeJoins = option;
+                    }
+                });
+
+            /*    
+                node.strokeMiterLimit = parseFloat(document.getElementById("Stroke miter limit").value);
+
+                let strokeDashArray = [];
+                strokeDashArray.push(parseFloat(document.getElementById("Dash").value));
+                strokeDashArray.push(parseFloat(document.getElementById("Gap").value));
+                node.strokeDashArray = strokeDashArray;
+                
+                node.strokeDashOffset = parseFloat(document.getElementById("Stroke dash offset").value);
+            */
+
+                if (nodeType === "polygon") {
+                    node.cornerCount = parseFloat(document.getElementById("Corners:").value);
+                    node.setAllCornerRadii(parseFloat(document.getElementById("Radii:").value));
+                    node.starRatio = parseFloat(document.getElementById("Ratio:").value);
+                }
+            });
+            e.target.disabled = true;   // still acts as active once after the click
+        });
+        nodeEditDiv.appendChild(updateNodeButton);
+
+        nodeEditDiv.addEventListener("change", (e) => {
+            console.log("something changed - see if we should enable update");
+/*
+            let test = document.getElementById("Stroke Joins").value;
+                console.log("Stroke Joins: " + test);
+*/
+            let disableButton = true;
+            if ((parseFloat(document.getElementById("Width:").value) != node.width) || (parseFloat(document.getElementById("Height:").value) != node.height)) {
+                disableButton = false;
+            }
+
+            if (node.fillEnabled != document.getElementById("Fill").checked) {
+                disableButton = false;
+            }
+            if (node.strokeEnabled != document.getElementById("Stroke").checked) {
+                disableButton = false;
+            }
+
+            if (parseFloat(document.getElementById("Stroke Width").value) != node.strokeWidth) {
+                disableButton = false;
+            }
+
+            if (disableButton) {
+                let positionRadioGroup = document.getElementById("Stroke Position");
+                strokePositionOptions.forEach(option => {
+                    //let control = document.getElementById(positionOption)
+                    let control = positionRadioGroup.querySelector("#" + option);
+                    console.log("Control: " + control);
+                    if (control.checked) {
+                        if (node.strokePosition != option) {
+                            disableButton = false;
+                        }
+                    }
+                });
+
+                let endCapsRadioGroup = document.getElementById("Stroke End Caps");
+                strokeEndCapsOptions.forEach(option => {
+                    //let control = document.getElementById(option)
+                    let control = endCapsRadioGroup.querySelector("#" + option);
+                    if (control.checked) {
+                        if (node.strokeEndCaps != option) {
+                            disableButton = false;
+                        }
+                    }
+                });
+
+                let joinsRadioGroup = document.getElementById("Stroke Joins");
+                strokeJoinsOptions.forEach(option => {
+                    //let control = document.getElementById(option)
+                    let control = joinsRadioGroup.querySelector("#" + option);
+                    if (control.checked) {
+                        if (node.strokeJoins != option) {
+                            disableButton = false;
+                        }
+                    }
+                });
+
+/*
+                let strokeDashArray = node.strokeDashArray;
+                //let hasDashArray = false;
+                if (parseFloat(document.getElementById("Dash").value) != strokeDashArray[0]) {
+                    disableButton = false;
+                }
+                if (parseFloat(document.getElementById("Gap").value) != strokeDashArray[1]) {
+                    disableButton = false;
+                }
+                if (parseFloat(document.getElementById("Stroke dash offset").value) != node.strokeDashOffset) {
+                    disableButton = false;
+                }
+*/                
+            }
+
+            if (nodeType === "polygon") {
+                if ((document.getElementById("Corners:").value != node.cornerCount) ||
+                    (document.getElementById("Radii:").value != node.cornerRadii[0]) ||
+                    (document.getElementById("Ratio:").value != node.starRatio)) {
+                        disableButton = false;
+                }
+            }
+            console.log("Disable button: " + disableButton);
+            document.getElementById("updateNodeButton").disabled = disableButton; 
+        });
+
+        document.getElementById("test-area").appendChild(nodeEditDiv);
+    });
+
+    function getNodeType(node) {
+        const {Rectangle, Ellipse, Polygon, Line, Text, Group, SymbolInstance, RepeatGrid, Artboard} = require("scenegraph");
+        if (node instanceof Rectangle) {
+            return "rectangle";
+        }else if (node instanceof Ellipse) {
+            return "ellipse";
+        }else if (node instanceof Polygon) {
+            return "polygon";
+        }else if (node instanceof Line) {
+            return "line";
+        }else if (node instanceof Text) {
+            return "text";
+        }else if (node instanceof Group) {
+            return "group";
+        }else if (node instanceof SymbolInstance) {
+            return "symbol";
+        }else if (node instanceof RepeatGrid) {
+            return "repeatgrid";
+        } else if (node instanceof Artboard) {
+            return "artboard";
+        } else {
+            return "unknown";
+        }
+    }
+
+    function createRow(label, value, controlType = "text") {
+        // <label><span>Height:</span><input type="text" /></label>
+        let row = document.createElement("label");
+        row.setAttribute("class", "row");
+        let rowLabel = document.createElement("span");
+        rowLabel.innerHTML = label;
+        row.appendChild(rowLabel);
+        let input = document.createElement("input");
+        input.setAttribute("type", controlType);
+        input.id = label;
+        if (controlType === "checkbox") {
+            input.checked = value;
+        } else {
+            input.value = value;
+        }
+        row.appendChild(input);
+
+        console.log(input.id);
+        return row;
+    }
+
+    function createRadioGroup(label, value, options) {
+        let radioGroup = document.createElement("div");
+        radioGroup.id = label;
+        radioGroup.setAttribute("class", "flex-column border");
+        let groupLabel = document.createElement("span");
+        groupLabel.innerHTML = label;
+        radioGroup.appendChild(groupLabel);
+
+        options.forEach(option => {
+            let row = document.createElement("label");
+            row.setAttribute("class", "row");
+
+            let input = document.createElement("input");
+            input.setAttribute("type", "radio");
+            input.name = label;
+            input.id = option;
+            input.value = option;
+            if (value === option) {
+                input.checked = true;
+            }
+            row.appendChild(input);
+
+            let rowLabel = document.createElement("span");
+            rowLabel.innerHTML = option;
+            row.appendChild(rowLabel);
+    
+            radioGroup.appendChild(row);
+        });
+
+        return radioGroup;
+    }
+}
 
 function getSelectedNodeDetails(includeChildren) {
     console.log("In getSelectedNodeDetails - include children: " + includeChildren);
@@ -506,8 +944,19 @@ function getNodeInfo(node, getChildren) {
     // get interactions
     detailsObj.triggeredInteractions = node.triggeredInteractions;
     //
-    const fs = require("uxp").storage.localFileSystem;
-    const {Entry} = require("uxp").storage.localFileSystem;
+
+    // get specific type data
+    if (detailsObj.type === "polygon") {
+        console.log("Get polygon details");
+        detailsObj.cornerCount = node.cornerCount;
+        detailsObj.cornerRadii = node.cornerRadii;
+        detailsObj.starRatio = node.starRatio;
+        detailsObj.width = node.width;
+        detailsObj.height = node.height;
+    }
+
+    //const fs = require("uxp").storage.localFileSystem;
+    //const {Entry} = require("uxp").storage.localFileSystem;
     const ImageFill = require("scenegraph").ImageFill;
     if (node.fillEnabled && node.fill instanceof ImageFill){
         console.log("We have an imageFill");
