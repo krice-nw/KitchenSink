@@ -389,11 +389,27 @@ exports.updatePanel = function(selection, rootNode, panelUI) {
         gContext = selection.editContext;
         gSelection = selection.items;
         let testItems = document.getElementById("test-area");
+        let focusedElement = document.hasFocus;
+        let activeElement = document.activeElement;
         while (testItems.firstChild) {
             testItems.removeChild(testItems.firstChild);
         }
 
         populateNodeEditArea(selection);
+        if (focusedElement) {
+            console.log("Focused element: " + focusedElement.id);
+            let elementForFocus = document.getElementById(focusedElement.id);
+            if (elementForFocus) {
+                elementForFocus.focus();
+            }
+        }
+        if(activeElement) {
+            console.log("Active element: " + activeElement.id);
+            let elementForFocus = document.getElementById(activeElement.id);
+            if (elementForFocus) {
+                elementForFocus.focus();
+            }
+        }
     }
 return;
     let selectionRadio = document.getElementById("selectionRadioButton");
@@ -595,6 +611,7 @@ function populateNodeEditArea(selection) {
     console.log("In populateNodeEditArea");
 
     const {GraphicNode} = require("scenegraph");
+    const app = require("application");
 
     // see about add the node deatils into a set of UI feilds to edit the content?
     let firstNodeType = undefined;
@@ -615,41 +632,92 @@ function populateNodeEditArea(selection) {
         }
 
         let nodeEditDiv = document.createElement("div");
+        nodeEditDiv.addEventListener("change", (event) => {
+            let type = event.target.type;
+            let id = event.target.id;
+            let name = event.target.name;
+            let value = parseFloat(event.target.value);
+            let checked = event.target.checked;
+            console.log("Changed by type: " + type);
+            console.log("id: " + id + ", name: " + name + ", value: " + value + ", checked: " + checked);
+
+            app.editDocument({"editLabel":"Update " + name}, () => {
+
+                if (type === "checkbox") {
+                    console.log("handle checkbox: " + event.target.checked);
+                    console.log("node." + name + "=" + checked);
+                    node[name] = checked;
+                } else if (type === "radio") {
+                    console.log("handle radio: ");
+                    if (name === "Stroke Position") {
+                        console.log("node.strokePosition = " + id);
+                        node.strokePosition = id;
+                    } else if (name === "Stroke End Caps") {
+                        console.log("node.strokeEndCaps = " + id);
+                        node.strokeEndCaps = id;
+                    } else if (name === "Stroke Joins") {
+                        console.log("node.strokeJoins = " + id);
+                        node.strokeJoins = id;
+                    }
+                } else {
+                    console.log("Use name to identify node protprty to modify: " + event.target.name);
+                    if (name === "dash") {
+                        console.log("node.strokeDashArray[0] = " + value);
+                        let strokeDashArray = node.strokeDashArray;
+                        strokeDashArray[0] = value;
+                        node.strokeDashArray = strokeDashArray;
+                    } else if (name === "gap") {
+                        console.log("node.strokeDashArray[1] = " + value);
+                        let strokeDashArray = node.strokeDashArray;
+                        strokeDashArray[1] = value;
+                        node.strokeDashArray = strokeDashArray;
+                    } else if (name === "cornerRadii") {
+                        node.setAllCornerRadii(value);
+                    } else {
+                        console.log("node." + name + "=" + value);
+                        node[name] = value;
+                    }
+                }
+
+            });
+        });
         let nodeEditLable = document.createElement("span");
         nodeEditLable.innerHTML = nodeType;
         nodeEditDiv.appendChild(nodeEditLable);
 
-        nodeEditDiv.appendChild(createRow("Width:", node.width));
-        nodeEditDiv.appendChild(createRow("Height:", node.height));
+        nodeEditDiv.appendChild(createRow("Width:", "width", node.width));
+        nodeEditDiv.appendChild(createRow("Height:", "height", node.height));
         // fill
-        nodeEditDiv.appendChild(createRow("Fill", node.fillEnabled, "checkbox"));
+        nodeEditDiv.appendChild(createCheckbox("Fill", "fillEnabled", node.fillEnabled));
         // stroke
         let strokePositionOptions = [GraphicNode.INNER_STROKE, GraphicNode.OUTER_STROKE, GraphicNode.CENTER_STROKE];
         let strokeEndCapsOptions = [GraphicNode.STROKE_CAP_NONE, GraphicNode.STROKE_CAP_SQUARE, GraphicNode.STROKE_CAP_ROUND];
         let strokeJoinsOptions = [GraphicNode.STROKE_JOIN_BEVEL, GraphicNode.STROKE_JOIN_ROUND, GraphicNode.STROKE_JOIN_MITER];
 
-        nodeEditDiv.appendChild(createRow("Stroke", node.strokeEnabled, "checkbox"));
-        nodeEditDiv.appendChild(createRow("Stroke Width", node.strokeWidth));  
+        nodeEditDiv.appendChild(createCheckbox("Stroke", "strokeEnabled", node.strokeEnabled));
+        nodeEditDiv.appendChild(createRow("Stroke Width", "strokeWidth", node.strokeWidth));  
         nodeEditDiv.appendChild(createRadioGroup("Stroke Position", node.strokePosition, strokePositionOptions));
         nodeEditDiv.appendChild(createRadioGroup("Stroke End Caps", node.strokeEndCaps, strokeEndCapsOptions));
         nodeEditDiv.appendChild(createRadioGroup("Stroke Joins", node.strokeJoins, strokeJoinsOptions));  
 
-//        nodeEditDiv.appendChild(createRow("Stroke miter limit", node.strokeMiterLimit));
-/*
+        nodeEditDiv.appendChild(createRow("Stroke miter limit", "strokeMiterLimit", node.strokeMiterLimit));
+
         let strokeDashArray = node.strokeDashArray;
         let dash = strokeDashArray.length > 0 ? strokeDashArray[0] : 0;
-        nodeEditDiv.appendChild(createRow("Dash", dash));
+        nodeEditDiv.appendChild(createRow("Dash", "dash", dash));
         let gap = strokeDashArray.length > 1 ? strokeDashArray[1] : 0;
-        nodeEditDiv.appendChild(createRow("Gap", gap));
-        nodeEditDiv.appendChild(createRow("Stroke dash offset", node.strokeDashOffset));
-*/
+        nodeEditDiv.appendChild(createRow("Gap", "gap", gap));
+        nodeEditDiv.appendChild(createRow("Stroke dash offset", "strokeDashOffset", node.strokeDashOffset));
+
 
         if (nodeType === "polygon") {
-            nodeEditDiv.appendChild(createRow("Corners:", node.cornerCount));
-            nodeEditDiv.appendChild(createRow("Radii:", node.cornerRadii[0]));
-            nodeEditDiv.appendChild(createRow("Ratio:", node.starRatio));
+            nodeEditDiv.appendChild(createRow("Corners:", "cornerCount", node.cornerCount));
+            nodeEditDiv.appendChild(createRow("Radii:", "cornerRadii", node.cornerRadii[0]));
+            nodeEditDiv.appendChild(createRow("Ratio:", "starRatio", node.starRatio));
         }
 
+        /*
+        // add the update button and logic to enable/disable based on UI chnages compared to node properties
         let updateNodeButton = document.createElement("button");
         updateNodeButton.setAttribute("id", "updateNodeButton");
         updateNodeButton.innerHTML = "Update";
@@ -697,7 +765,7 @@ function populateNodeEditArea(selection) {
                     }
                 });
 
-            /*    
+                
                 node.strokeMiterLimit = parseFloat(document.getElementById("Stroke miter limit").value);
 
                 let strokeDashArray = [];
@@ -706,7 +774,7 @@ function populateNodeEditArea(selection) {
                 node.strokeDashArray = strokeDashArray;
                 
                 node.strokeDashOffset = parseFloat(document.getElementById("Stroke dash offset").value);
-            */
+            
 
                 if (nodeType === "polygon") {
                     node.cornerCount = parseFloat(document.getElementById("Corners:").value);
@@ -717,13 +785,12 @@ function populateNodeEditArea(selection) {
             e.target.disabled = true;   // still acts as active once after the click
         });
         nodeEditDiv.appendChild(updateNodeButton);
+        */
 
+        /*
         nodeEditDiv.addEventListener("change", (e) => {
             console.log("something changed - see if we should enable update");
-/*
-            let test = document.getElementById("Stroke Joins").value;
-                console.log("Stroke Joins: " + test);
-*/
+
             let disableButton = true;
             if ((parseFloat(document.getElementById("Width:").value) != node.width) || (parseFloat(document.getElementById("Height:").value) != node.height)) {
                 disableButton = false;
@@ -775,7 +842,7 @@ function populateNodeEditArea(selection) {
                     }
                 });
 
-/*
+
                 let strokeDashArray = node.strokeDashArray;
                 //let hasDashArray = false;
                 if (parseFloat(document.getElementById("Dash").value) != strokeDashArray[0]) {
@@ -787,7 +854,7 @@ function populateNodeEditArea(selection) {
                 if (parseFloat(document.getElementById("Stroke dash offset").value) != node.strokeDashOffset) {
                     disableButton = false;
                 }
-*/                
+                
             }
 
             if (nodeType === "polygon") {
@@ -800,6 +867,7 @@ function populateNodeEditArea(selection) {
             console.log("Disable button: " + disableButton);
             document.getElementById("updateNodeButton").disabled = disableButton; 
         });
+        */
 
         document.getElementById("test-area").appendChild(nodeEditDiv);
     });
@@ -829,7 +897,7 @@ function populateNodeEditArea(selection) {
         }
     }
 
-    function createRow(label, value, controlType = "text") {
+    function createRow(label, name, value, controlType = "text") {
         // <label><span>Height:</span><input type="text" /></label>
         let row = document.createElement("label");
         row.setAttribute("class", "row");
@@ -839,15 +907,41 @@ function populateNodeEditArea(selection) {
         let input = document.createElement("input");
         input.setAttribute("type", controlType);
         input.id = label;
-        if (controlType === "checkbox") {
-            input.checked = value;
-        } else {
-            input.value = value;
-        }
+        input.name = name;
+        input.value = value;
         row.appendChild(input);
 
         console.log(input.id);
         return row;
+    }
+
+    function createCheckbox(label, name, value) {
+        let checkboxGroup = document.createElement("div");
+        checkboxGroup.setAttribute("class", "row");
+
+        let input = document.createElement("input");
+        input.setAttribute("type", "checkbox");
+        input.id = label;
+        input.name = name;
+        input.checked = value;
+        checkboxGroup.appendChild(input);
+
+
+        let checkboxControl = document.createElement("label");
+        checkboxControl.setAttribute("class", "row");
+
+        let colorButton = document.createElement("button");
+        colorButton.setAttribute("height", "75%");
+        checkboxControl.appendChild(colorButton);
+
+        let rowLabel = document.createElement("span");
+        rowLabel.innerHTML = label;
+        checkboxControl.appendChild(rowLabel);
+
+        checkboxGroup.appendChild(checkboxControl);
+
+        //return checkboxControl;
+        return checkboxGroup;
     }
 
     function createRadioGroup(label, value, options) {
