@@ -1,8 +1,8 @@
 const application = require("application");
 const fs = require("uxp").storage;
-const { root, selection, BooleanGroup, Text, Artboard, SymbolInstance } = require("scenegraph");
+const { root, selection, BooleanGroup, Group, Text, Artboard, SymbolInstance, RepeatGrid } = require("scenegraph");
 const interactions = require("interactions");
-let renditionTimer;
+const renditionUtils = require("./modules/renditionUtils");
 
 
 var previewInteractionsPanel;
@@ -62,13 +62,19 @@ function create() {
         try {
             application.editDocument(() => {
                 prepareDocumentPreview();
-                // previewDocument();
+                //previewDocument();
             });
         } catch (e) {
             console.log("Error trying to prepare document preview: " + e);
         }
         
-        previewDocument();
+        if (selection.items[0] instanceof SymbolInstance) {
+            getStatesRenditions(selection.items[0]);
+        } else {
+            previewDocument();
+        }
+        
+        //previewDocument();
 
         //getPreviewItems(); // method to utilize allInteractions
     }
@@ -78,7 +84,15 @@ function create() {
     rootNode.querySelector("form").addEventListener("submit", exec);
 
     rootNode.querySelector("#actionButton").addEventListener("click", () => {
-        application.editDocument(() => {selection.items[0].moveInParentCoordinates(20,20)});
+        //application.editDocument(() => {selection.items[0].moveInParentCoordinates(20,20)});
+        application.editDocument(() => {
+            let textElement = new Text();
+            //textElement.areaBox = {"width":200, "height":100};
+            //textElement.areaBox = null;
+            textElement.text = "Now is the time for all good men ...";
+            selection.insertionParent.addChild(textElement);
+            //root.artboards[0].addChild(textElement);
+        });
     });
 
     return rootNode;
@@ -142,6 +156,31 @@ async function update() {
 }
 
 
+async function getStatesRenditions(component) {
+    console.log("In getStatesRenditions");
+    // ensure the component is a SymbolInstance then iterate over each state 
+    // to create and display its rendition
+    if (!(component instanceof SymbolInstance)) {
+        console.log("Error: component is not a SymbolInstance");
+    }
+
+    let imageElement = document.querySelector("#images");
+    while (imageElement.firstChild) {
+        imageElement.removeChild(imageElement.firstChild);
+    }
+
+    let states = [];
+    component.statesInfo.forEach(stateInfo => {
+        states.push(component.getState(stateInfo.stateId));
+    });
+    console.log("sates length: " + states.length);
+
+    let statesRenditions = await renditionUtils.getNodeRenditions(states);
+    console.log(statesRenditions.length);
+    renditionUtils.addRenditionsToElement(statesRenditions, imageElement);
+}
+
+
 function prepareDocumentPreview () {
     console.log("In prepareDocumentPreview");
 
@@ -151,11 +190,15 @@ function prepareDocumentPreview () {
 
     selection.editContext.children.filter(node => node instanceof Artboard).forEach( artboard => {
         artboard.children.filter(child => child instanceof SymbolInstance).forEach( component => {
-            component.statesArray.forEach( state => {
-                if (state.isDefaultState && ! state.isActiveState) {
-                    console.log("Potential state change to default id " + state.stateId + " of component: " + component);
-                    let activeState = component.activeState;
-                    console.log("activeState: " + activeState);
+//          component.statesArray.forEach( state => {
+            component.statesInfo.forEach( stateInfo => {
+                if (stateInfo.isDefaultState && ! stateInfo.isActiveState) {
+                //if (state.isDefaultState && ! state.isActiveState) {
+                    console.log("Potential state change to default id " + stateInfo.stateId + " of component: " + component);
+                    //console.log("Potential state change to default id " + state.stateId + " of component: " + component);
+                    //let activeState = component.activeState;
+                    //console.log("activeState: " + activeState);
+                    let state = component.getState(stateInfo.stateId)
                     if ((component.boundsInParent.width != state.boundsInParent.width) ||
                         (component.boundsInParent.height != state.boundsInParent.height) ||
                         (component.boundsInParent.x != state.boundsInParent.x) ||
@@ -390,7 +433,13 @@ async function previewArtboard(artboard, renditions, previousArtboard = undefine
     // add the artboard image to the display
     images.appendChild(artboardImage);
 
-    getChildInteractions(artboard, images);
+//    artboard.children.forEach(child => {
+//        handleNodeInteractions(child, renditions, images)
+//    });
+    for (let i=0; i < artboard.children.length; i++) {
+        await handleNodeInteractions(artboard.children.at(i), renditions, images)
+    }
+    //await getChildInteractions(artboard, images);
 
     async function getChildInteractions(node, images) {
         console.log("In getChildInteractions: " + node.name);
@@ -401,179 +450,186 @@ async function previewArtboard(artboard, renditions, previousArtboard = undefine
         console.log("We have " + node.children.length + " children");
         // I beleive all SymbolInstances now have states - even if just the default state
         //let components = node.children.filter(child => child instanceof SymbolInstance && child.statesArray.length > 0);
-        let components = node.children.filter(child => child instanceof SymbolInstance);
-        for (let i=0; i < components.length; i++) {
-            console.log("Component: " + components[i].name);
+//        let components = node.children.filter(child => child instanceof SymbolInstance);
+        //for (let i=0; i < components.length; i++) {
+        for (let i=0; i < node.children.length; i++) {
+            console.log("Node child: " + node.children.at(i).name + " - " + node.children.at(i).guid);
 
-            let statesArrayImage = undefined;
-            let interactionData = [];
+            if (node.children.at(i) instanceof SymbolInstance)
+            {
+                let statesArrayImage = undefined;
+                let interactionData = [];
 
 
-            if (components[i].statesArray.length < 1) {
-                console.log("ERROR: SymbolInstance without states - " + components[i].name);
-            }
-
-            console.log("Create the shared stateArray img element");
-            statesArrayImage = await createImgElement(components[i], renditions);
-            statesArrayImage.setAttribute("class", "child");
-            //images.appendChild(statesArrayImage);
-
-            let componentHasIteractions = false;
-
-            let statesInfo = components[i].statesInfo;
-            let states = components[i].statesArray.filter(state => true);
-            console.log(states.length);
-            for (let s=0; s < states.length; s++) {
-                let state = states[s];
-                let stateName = statesInfo.filter(info => info.stateId === state.stateId)[0].name;
-                console.log("STATE: " + stateName);
-
-                // check if is the deafult state here to ensure we add the rendition for view
-                if (state.isDefaultState) {
-                    console.log("Default");
-                    // make sure to get the defaulkt state image
-                    if (! renditions[state.guid]) {
-                        renditions[state.guid] = await getnodeRenditionImage(state);
-                    }
-                    // set img element src to the default state rendition
-                    await updateImgElement(statesArrayImage, state, renditions); 
-                    // set the element name to the deafult state guid
-                    statesArrayImage.setAttribute("name", state.guid);
-
-                    // check if the active state has the same width, hight and location
-                    /*
-                    if (! state.isAciveState) {
-                        //if () {
-                            setSymbolSatate(components[i], state.id);
-                        //}
-                    }
-                    */
+                //if (components[i].statesArray.length < 1) {
+                if (node.children.at(i).statesInfo.length < 1) {
+                    console.log("ERROR: SymbolInstance without states - " + node.children.at(i).name);
                 }
 
-                // handle interactions
-                if (state.triggeredInteractions.length > 0) {
-                    console.log(stateName + " has interactions: " + state.triggeredInteractions.length);
-                    console.log("State guid: " + state.guid);
+                console.log("Create the shared stateArray img element");
+                statesArrayImage = await createImgElement(node.children.at(i), renditions);
+                statesArrayImage.setAttribute("class", "child");
+                //images.appendChild(statesArrayImage);
 
-                    componentHasIteractions = true;
+                let componentHasIteractions = false;
 
-                    // make sure to get the source
-                    if (! renditions[state.guid]) {
-                        renditions[state.guid] = await getnodeRenditionImage(state);
+                console.log("Get statesInfo");
+                let statesInfo = node.children.at(i).statesInfo;
+                console.log("STATES INFO: ");
+                console.log(JSON.stringify(statesInfo));
+                //let states = components[i].statesArray.filter(state => true);
+                let states = [];
+                //statesInfo.forEach(info => {
+                for(let si = 0; si < statesInfo.length; si++) {
+                    let info = statesInfo[si];
+                    console.log("getState for stateId: " + info.stateId);
+                    let componentState = node.children.at(i).getState(info.stateId);
+                    console.log(componentState);
+
+                    console.log("State name: " + info.name);
+                    // try to do everything in this loop 2/21/2020
+                    // make the default state the rendition we display for the this SymbolInstance
+                    if (info.isDefaultState) {
+                        console.log("isDefaultState");
+                        if (! renditions[componentState.guid]) {
+                            renditions[componentState.guid] = await getnodeRenditionImage(componentState);
+                        }
+                        // set img element src to the default state rendition
+                        await updateImgElement(statesArrayImage, componentState, renditions); 
+                        // set the element name to the deafult state guid
+                        statesArrayImage.setAttribute("name", componentState.guid);
                     }
 
-                    for (let index = 0; index < state.triggeredInteractions.length; index++) {
-                        let trigger = state.triggeredInteractions[index].trigger.type;
-                        console.log("trigger: " + trigger);
-                        let action = state.triggeredInteractions[index].action.type;
-                        console.log("action: " + action);
-                        let destination = state.triggeredInteractions[index].action.destination;
-                        console.log("destination: " + destination);
+                    // identify and handle interactions
+                    if (componentState.triggeredInteractions.length > 0) {
+                        console.log("Has " + componentState.triggeredInteractions.length + " triggeredInteractions");
+                        
+                        componentHasIteractions = true;
 
-                        // make sure to get the destination
-                        if (! renditions[destination.guid]) {
-                            renditions[destination.guid] = await getnodeRenditionImage(destination);
+                        // make sure to get the source
+                        if (! renditions[componentState.guid]) {
+                            renditions[componentState.guid] = await getnodeRenditionImage(componentState);
                         }
 
-                        console.log("Add interaction for the shared state img element");
-                        console.log("Source guid: " + state.guid + " trigger: " + trigger + " action: " + action);
-                        let stateMetaData = {"source": state, "destination": destination, "trigger": trigger, "action": action, "index": s};
-                        interactionData.push(stateMetaData);
+                        for (let index = 0; index < componentState.triggeredInteractions.length; index++) {
+                            let trigger = componentState.triggeredInteractions[index].trigger.type;
+                            console.log("trigger: " + trigger);
+                            let action = componentState.triggeredInteractions[index].action.type;
+                            console.log("action: " + action);
+                            let destination = componentState.triggeredInteractions[index].action.destination;
+
+                            if (action === 'goToState') {
+                                console.log("destination.stateId: " + destination.stateId);
+                                destination = node.children.at(i).getState(destination.stateId);
+                            }
+
+                            console.log("destination: " + destination);
+
+                            // make sure to get the destination
+                            if (! renditions[destination.guid]) {
+                                console.log("Get rendition for guid: " + destination.guid);
+                                renditions[destination.guid] = await getnodeRenditionImage(destination);
+                            }
+
+                            console.log("Add interaction for the shared state img element");
+                            console.log("Source guid: " + componentState.guid + " trigger: " + trigger + " action: " + action);
+                            let stateMetaData = {"source": componentState, "destination": destination, "trigger": trigger, "action": action, "index": si};
+                            interactionData.push(stateMetaData);
+                        }
                     }
 
-                    // now add event to mimic interactions
-
-                    //images.appendChild(stateImage);
+                    //states.push(componentState);
                 }
-            }
+                //console.log(JSON.stringify(states));
+                // add event handler for the componet 
 
-            // add event handler for the componet 
+                if (componentHasIteractions) {
+                    images.appendChild(statesArrayImage);
 
-            if (componentHasIteractions) {
-                images.appendChild(statesArrayImage);
-
-                statesArrayImage.addEventListener("mouseenter", event => {
-                    let name = event.target.getAttribute("name");
-                    console.log("In mouseenter: " + name);
+                    statesArrayImage.addEventListener("mouseenter", event => {
+                        let name = event.target.getAttribute("name");
+                        console.log("In mouseenter: " + name);
 
 
-                    let interactions = interactionData.filter( action => action.source.guid === name );
-                    if (interactions.length > 0) {
-                        event.target.style.setProperty('cursor', 'pointer');
+                        let interactions = interactionData.filter( action => action.source.guid === name );
+                        if (interactions.length > 0) {
+                            event.target.style.setProperty('cursor', 'pointer');
 
-                        interactions.forEach(interaction => {
-                            if (interaction.trigger === "hover") {
-                                console.log("Act on this");
-                                // set img src, size and location to the detination - update metadata and name
-                                updateImgElement(statesArrayImage, interaction.destination, renditions); 
-                                // update metadata to reflect the desitination 
-                                event.target.setAttribute("name", interaction.destination.guid);
-                            }
-                        });
-                    } else {
-                        console.log("interaction not found!");
-                    }
-                });
-
-                statesArrayImage.addEventListener("mouseleave", event => {
-                    let name = event.target.getAttribute("name");
-                    console.log("In mouseleave: " + name);
-
-                    event.target.style.setProperty('cursor', 'auto');
-
-                    let interaction = interactionData.filter( interaction => interaction.destination.guid === name && interaction.trigger === "hover")[0];
-
-                    if (interaction) {
-                        console.log("Act on this");
-                        // set img src, size and location to the detination - update metadata and name
-                        updateImgElement(statesArrayImage, interaction.source, renditions); 
-                        // update metadata to reflect the desitination 
-                        event.target.setAttribute("name", interaction.source.guid);
-                    }
-
-                });
-
-                statesArrayImage.addEventListener("click", event => {
-                    let name = event.target.getAttribute("name");
-                    console.log("In click: " + name);
-
-                    let interaction = interactionData.filter( action => action.source.guid === name && action.trigger === "tap")[0];
-                    console.log(JSON.stringify(interaction));
-
-                    if (interaction) {
-                        console.log("We have an interaction!");
-
-                        if (interaction.trigger === "tap") {
-                            console.log("Act on this tap");
-
-                            if (interaction.action === "goToState") {
-                                console.log("Go to state");
-                                // set img src, size and location to the detination - update metadata and name
-                                updateImgElement(statesArrayImage, interaction.destination, renditions); 
-                                // update metadata to reflect the desitination 
-                                event.target.setAttribute("name", interaction.destination.guid);
-                            } else if (interaction.action === "goToArtboard") {
-                                console.log("Go to artboard");
-                                previewArtboard(interaction.destination, renditions, artboard);
-                            }
+                            interactions.forEach(interaction => {
+                                if (interaction.trigger === "hover") {
+                                    console.log("Act on this");
+                                    // set img src, size and location to the detination - update metadata and name
+                                    updateImgElement(statesArrayImage, interaction.destination, renditions); 
+                                    // update metadata to reflect the desitination 
+                                    event.target.setAttribute("name", interaction.destination.guid);
+                                }
+                            });
+                        } else {
+                            console.log("interaction not found!");
                         }
-                    } else {
-                        console.log("interaction not found!");
-                    }
-                });
-            }
+                    });
 
-            // see if this is a container
-            if (components[i].isContainer) {
-                console.log("This is a container");
-                //getChildInteractions(components[i], images);
+                    statesArrayImage.addEventListener("mouseleave", event => {
+                        let name = event.target.getAttribute("name");
+                        console.log("In mouseleave: " + name);
+
+                        event.target.style.setProperty('cursor', 'auto');
+
+                        let interaction = interactionData.filter( interaction => interaction.destination.guid === name && interaction.trigger === "hover")[0];
+
+                        if (interaction) {
+                            console.log("Act on this");
+                            // set img src, size and location to the detination - update metadata and name
+                            updateImgElement(statesArrayImage, interaction.source, renditions); 
+                            // update metadata to reflect the desitination 
+                            event.target.setAttribute("name", interaction.source.guid);
+                        }
+
+                    });
+
+                    statesArrayImage.addEventListener("click", event => {
+                        let name = event.target.getAttribute("name");
+                        console.log("In click: " + name);
+
+                        let interaction = interactionData.filter( action => action.source.guid === name && action.trigger === "tap")[0];
+                        console.log(JSON.stringify(interaction));
+
+                        if (interaction) {
+                            console.log("We have an interaction!");
+
+                            if (interaction.trigger === "tap") {
+                                console.log("Act on this tap");
+
+                                if (interaction.action === "goToState") {
+                                    console.log("Go to state");
+                                    // set img src, size and location to the detination - update metadata and name
+                                    updateImgElement(statesArrayImage, interaction.destination, renditions); 
+                                    // update metadata to reflect the desitination 
+                                    event.target.setAttribute("name", interaction.destination.guid);
+                                } else if (interaction.action === "goToArtboard") {
+                                    console.log("Go to artboard");
+                                    previewArtboard(interaction.destination, renditions, artboard);
+                                }
+                            }
+                        } else {
+                            console.log("interaction not found!");
+                        }
+                    });
+                } else {
+                    console.log("This is a non-interactive symbol - check children");
+                    await getChildInteractions(node.children.at(i), images);    
+                }
+            } else if (node.children.at(i).isContainer) {
+                console.log("Not a symbol but is a container");
+                await getChildInteractions(node.children.at(i), images);
             }
         }
-
+/*
         let children = node.children.filter(child => !(child instanceof SymbolInstance));
         for (let i=0; i < children.length; i++) {
             console.log("Child: " + children[i].name);
         }
+*/
     }
 }
 
@@ -588,6 +644,12 @@ function setSymbolSatate(component, desiredStateId) {
 }
 
 async function createImgElement(node, renditions) {
+    console.log("In createImgElement");
+    console.log("Node: " + node.name + " - " + node.guid);
+    console.log("parent:");
+    console.log(node.parent);
+    console.log("Node parent parent: " + node.parent.parent.name + " - " + node.parent.parent.guid);
+    console.log("Parent parent is RepeatGrid: " + (node.parent.parent instanceof RepeatGrid));
     let image = document.createElement("img");
     image.setAttribute("id", node.guid);
     image.width = node.boundsInParent.width;
@@ -595,25 +657,44 @@ async function createImgElement(node, renditions) {
     image.setAttribute("class", "child");
     // setting left and top will be difficult for nested elements ...
     console.log("Set state image top and left");
-    image.style.left = node.boundsInParent.x + "px";
-    image.style.top = node.boundsInParent.y + "px";
+//    image.style.left = node.boundsInParent.x + "px";
+//    image.style.top = node.boundsInParent.y + "px";
+    image.style.left = node.globalBounds.x + "px";
+    image.style.top = node.globalBounds.y + "px";
+    console.log("top: " + image.style.top + " left: " + image.style.left);
+    console.log(node.localBounds);
+    console.log(node.globalBounds);
+    console.log(node.boundsInParent);
+    console.log(node.topLeftInParent);
     // assign source image
     if (! renditions[node.guid]) {
+        console.log("Call getnodeRenditionImage");
         renditions[node.guid] = await getnodeRenditionImage(node);
     }
+    console.log("Set the img src to the rendition");
     image.setAttribute("src", `data:image/png;base64,${renditions[node.guid]}`);
     return image;
 }
 
 async function updateImgElement(imgElement, node, renditions) {
     console.log("In updateImgElement: " + node.guid);
+    console.log(node);
     imgElement.setAttribute("name", node.guid);
     imgElement.width = node.boundsInParent.width;
     imgElement.height = node.boundsInParent.height;
     // setting left and top will be difficult for nested elements ...
+    // actually appears the states nodes have to postion info just 
+    // width and height so updating the top/left sets the element to 0,0
+    //TODO: supported transformed elements
+    //TODO: Hide default state view when state doens't hide it fully
+    // maybe use artboard renditions for each state permutation?
+/*
     console.log("Set state image top and left");
     imgElement.style.left = node.boundsInParent.x + "px";
     imgElement.style.top = node.boundsInParent.y + "px";
+    console.log("left: " + imgElement.style.left);
+    console.log("top: " + imgElement.style.top);
+*/
     // assign source image
     /*
     if (! renditions[node.guid]) {
@@ -710,8 +791,14 @@ async function createRenditionsFromArray(nodeArray) {
 
 // create rendition for a single node
 async function createNodeRendition(node) {
+    console.log("In createNodeRendition");
+    let nodes = [];
+    nodes.push(node);
+    let renditions = await renditionUtils.getNodeRenditions(nodes);
+    return renditions[0];
+/*
     const folder = await fs.localFileSystem.getTemporaryFolder();
-    let nodeArray = [node];
+    const nodeArray = [node];
     const arr = await nodeArray.map(async item => {
         console.log("Test: " + item.guid);
         const file = await folder.createFile(`${item.guid}.png`, { overwrite: true });
@@ -728,9 +815,296 @@ async function createNodeRendition(node) {
     const renditionResults = await application.createRenditions(renditions);
     const renditionsFiles = renditionResults.map(a => a.outputFile);
     return renditionsFiles[0];
+*/
 }
 
+// 2/26/2020
+function getActiveState(symbol) {
+    console.log("In getActiveState");
+    let activeState = symbol.getState(symbol.stateId);
+    // console log some stuff
+    return activeState;
+}
 
+function getDefaultState(symbol) {
+    console.log("In getDefaultState");
+    let defaultState = symbol;
+    if (symbol instanceof SymbolInstance) {
+        symbol.statesInfo.forEach(stateInfo => {
+            if (stateInfo.isDefaultState) {
+                console.log("Found default state, stateId: " + stateInfo.stateId);
+                if (symbol.stateId === stateInfo.stateId) {
+                    console.log("Default state is active");
+                } else {
+                    console.log("Default state is not active");
+                }
+                
+                defaultState = symbol.getState(stateInfo.stateId);
+                //console.log(defaultState);
+            }
+        });
+    }
+
+    return defaultState;
+}
+
+// let renditions = await renditionUtils.getNodeRenditions(nodes);
+function getSymbolInteractions(symbol) {
+    console.log("In getSymbolInteractions");
+    let symbolInteractions = [];
+    symbol.statesInfo.forEach(stateInfo => {
+        //console.log("get state for stateId: " + stateInfo.stateId);
+        let state = symbol.getState(stateInfo.stateId);
+        // break out to a helper function?
+        state.triggeredInteractions.forEach(interaction => {
+            // if the action is goToState the destination is a stateId but we nned the state
+            let destination = interaction.action.destination;
+            if (interaction.action.type === 'goToState') {
+                destination = symbol.getState(destination.stateId);
+            }
+            symbolInteractions.push({
+                "source": state,
+                "destination": destination,
+                "trigger": interaction.trigger.type,
+                "action": interaction.action.type
+            });
+        });
+    });
+    //console.log("symbolInteractions:" + JSON.stringify(symbolInteractions));
+    return symbolInteractions;
+}
+
+async function getSymbolInteractionRenditions(interactions, renditions) {
+    console.log("In getSymbolInteractionRenditions");
+    let interactionNodes = [];
+    let rendtionGuids = [];
+
+    interactions.forEach(interaction => {
+        let source = interaction.source;
+        if (! renditions[source.guid] && ! rendtionGuids.includes(source.guid)) {
+            //console.log("Get source rendition");
+            interactionNodes.push(source);
+            rendtionGuids.push(source.guid);
+        }
+
+        let destination = interaction.destination;
+        if (! renditions[destination.guid] && ! rendtionGuids.includes(destination.guid)) {
+            //console.log("Get destination rendition");
+            interactionNodes.push(destination);
+            rendtionGuids.push(destination.guid);
+        }
+    })
+    
+    if (interactionNodes.length > 0) {
+        //console.log("Get " + interactionNodes.length + " rendition images");
+        let interactionImages = await renditionUtils.getNodeRenditionImages(interactionNodes);
+        //console.log("Got " + interactionImages.length + " rendition images");
+        if (interactionImages.length === rendtionGuids.length) {
+            for (let x=0; x<rendtionGuids.length; x++) {
+                //console.log(interactionImages[x]);
+                renditions[rendtionGuids[x]] = interactionImages[x];
+            }
+        }
+    }
+}
+
+function addInteractiveElement(symbol, interactionData, renditions, topLeftPoint) {
+    console.log("In addInteractiveElement: " + symbol.name + " parent: " + symbol.parent.name + " parent: " + symbol.parent.parent.name);
+    console.log("topLeftPoint: " + JSON.stringify(topLeftPoint));
+    let defaultState = getDefaultState(symbol);
+    //console.log(defaultState);
+    //console.log("default state guild: " + defaultState.guid);
+
+    // create the inital img element set to the default state
+    let symbolImage = document.createElement("img");
+    //console.log("We have symbolImage: " + symbolImage);
+    symbolImage.setAttribute("id", defaultState.guid);
+    symbolImage.width = defaultState.boundsInParent.width;
+    symbolImage.height = defaultState.boundsInParent.height;
+    symbolImage.setAttribute("class", "child");
+    symbolImage.setAttribute("name", defaultState.guid);
+    console.log("set left top");
+    console.log("node.topLeftInParent: " + JSON.stringify(symbol.topLeftInParent));
+    console.log("node.parent.topLeftInParent: " + JSON.stringify(symbol.parent.topLeftInParent));
+    // setting left and top will be difficult for nested elements ...
+    // use the symbol and not the default state to determine top left
+    // because it is the same accross all states and only the currently
+    // viewed state has a parent/child hieirarchy.
+    if (symbol.parent instanceof Group && symbol.parent.parent instanceof RepeatGrid) {
+    //if (symbol.parent instanceof Group) {
+        console.log("In RepeatGrid");
+        console.log("defaultState.globalBounds.x: " + defaultState.globalBounds.x);
+        console.log("defaultState.globalBounds.y: " + defaultState.globalBounds.y);
+        console.log("symbol.parent.boundsInParent.x: " + symbol.parent.boundsInParent.x);
+        console.log("symbol.parent.boundsInParent.y: " + symbol.parent.boundsInParent.y);
+        console.log("symbol.parent.parent.boundsInParent.x: " + symbol.parent.parent.boundsInParent.x);
+        console.log("symbol.parent.parent.boundsInParent.y: " + symbol.parent.parent.boundsInParent.y);
+        // if the symbol is in a repeast grid it sits in a n intermnidiate group
+        //symbolImage.style.left = defaultState.globalBounds.x + "px";
+        //symbolImage.style.top = defaultState.globalBounds.y + "px";    
+        //symbolImage.style.left = symbol.parent.boundsInParent.x + "px";
+        //symbolImage.style.top = symbol.parent.boundsInParent.y + "px";
+
+        //symbolImage.style.left = symbol.topLeftInParent.x + symbol.parent.topLeftInParent.x + "px";
+        //symbolImage.style.top = symbol.topLeftInParent.y + symbol.parent.topLeftInParent.y + "px";
+
+        symbolImage.style.left = topLeftPoint.x;
+        symbolImage.style.top = topLeftPoint.y;
+
+    } else {
+        console.log("Not In RepeatGrid");
+        symbolImage.style.left = symbol.boundsInParent.x + "px";
+        symbolImage.style.top = symbol.boundsInParent.y + "px";
+    }
+    // assign source image
+    symbolImage.setAttribute("src", `data:image/png;base64,${renditions[defaultState.guid]}`);
+
+    // now iterate over interactions to add transition events
+    console.log("Add event listeners");
+    symbolImage.addEventListener("mouseenter", event => {
+        let name = event.target.getAttribute("name");
+        console.log("In mouseenter: " + name);
+
+
+        let interactions = interactionData.filter( action => action.source.guid === name );
+        if (interactions.length > 0) {
+            event.target.style.setProperty('cursor', 'pointer');
+
+            interactions.forEach(interaction => {
+                if (interaction.trigger === "hover") {
+                    console.log("Act on this");
+                    // set img src, size and location to the detination - update metadata and name
+                    updateImageElement(symbolImage, interaction.destination, renditions); 
+                    // update metadata to reflect the desitination 
+                    event.target.setAttribute("name", interaction.destination.guid);
+                }
+            });
+        } else {
+            console.log("interaction not found!");
+        }
+    });
+
+    symbolImage.addEventListener("mouseleave", event => {
+        let name = event.target.getAttribute("name");
+        console.log("In mouseleave: " + name);
+
+        event.target.style.setProperty('cursor', 'auto');
+
+        let interaction = interactionData.filter( interaction => interaction.destination.guid === name && interaction.trigger === "hover")[0];
+
+        if (interaction) {
+            console.log("Act on this");
+            // set img src, size and location to the detination - update metadata and name
+            updateImageElement(symbolImage, interaction.source, renditions); 
+            // update metadata to reflect the desitination 
+            event.target.setAttribute("name", interaction.source.guid);
+        }
+
+    });
+
+    symbolImage.addEventListener("click", event => {
+        let name = event.target.getAttribute("name");
+        console.log("In click: " + name);
+
+        let interaction = interactionData.filter( action => action.source.guid === name && action.trigger === "tap")[0];
+        console.log(JSON.stringify(interaction));
+
+        if (interaction) {
+            console.log("We have an interaction!");
+
+            if (interaction.trigger === "tap") {
+                console.log("Act on this tap");
+
+                if (interaction.action === "goToState") {
+                    console.log("Go to state");
+                    // set img src, size and location to the detination - update metadata and name
+                    updateImageElement(symbolImage, interaction.destination, renditions); 
+                    // update metadata to reflect the desitination 
+                    event.target.setAttribute("name", interaction.destination.guid);
+                } else if (interaction.action === "goToArtboard") {
+                    console.log("Go to artboard");
+                    previewArtboard(interaction.destination, renditions, getParentArtboard(symbol));
+                }
+            }
+        } else {
+            console.log("interaction not found!");
+        }
+    });    
+
+    function updateImageElement(imageElement, node, renditions) {
+        console.log("In updateImageElement");
+        imageElement.setAttribute("name", node.guid);
+        imageElement.width = node.boundsInParent.width;
+        imageElement.height = node.boundsInParent.height;
+        imageElement.setAttribute("src", `data:image/png;base64,${renditions[node.guid]}`);
+        //console.log(renditions[node.guid]);
+    }
+
+    return symbolImage;
+}
+
+async function handleNodeInteractions(node, renditions, images, topLeftInParent = {"x":0,"y":0}) {
+    console.log("In handleNodeInteractions: " + node.name);
+    console.log("node.topLeftInParent: " + JSON.stringify(node.topLeftInParent));
+    console.log("node.topLeftInParent: " + JSON.stringify(topLeftInParent));
+    //let renditions = {};
+    console.log("Node has interactions: " + node.triggeredInteractions);
+    if (node.triggeredInteractions.length) {
+        console.log("Yes - node has interactions");
+    } else {
+        console.log("No - node doesn't have interactions");
+    }
+
+    if (node instanceof SymbolInstance) {
+        
+        let interactions = getSymbolInteractions(node);
+        if (interactions.length > 0) {
+            await getSymbolInteractionRenditions(interactions, renditions);
+            let imgElement = addInteractiveElement(node, interactions, renditions, topLeftInParent);
+            images.appendChild(imgElement);
+        } else {
+            for(let i = 0; i < node.children.length; i++) {
+                console.log("Call handleNodeInteractions from symbol");
+                let x = node.topLeftInParent.x + topLeftInParent.x;
+                let y= node.topLeftInParent.y + topLeftInParent.y;
+                let topLeftPoint = {"x": x, "y": y};
+                await handleNodeInteractions(node.children.at(i), renditions, images, topLeftPoint);
+            }    
+        }
+        
+    } else if (node.triggeredInteractions.length > 0) {
+        let interactions = getNodeInteractions(node);
+        await getSymbolInteractionRenditions(interactions, renditions);
+        let imgElement = addInteractiveElement(node, interactions, renditions, topLeftInParent);
+        images.appendChild(imgElement);
+    } else if (node.isContainer) {
+        //node.children.forEach(child => handleNodeInteractions(child, renditions, images));
+        for(let i = 0; i < node.children.length; i++) {
+            console.log("Call handleNodeInteractions for child");
+            let x = node.topLeftInParent.x + topLeftInParent.x;
+            let y= node.topLeftInParent.y + topLeftInParent.y;
+            let topLeftPoint = {"x": x, "y": y};
+            await handleNodeInteractions(node.children.at(i), renditions, images, topLeftPoint);
+        }
+    }
+}
+
+function getNodeInteractions(node) {
+    console.log("In getNodeInteractions");
+    let nodeInteractions = [];
+    node.triggeredInteractions.forEach(interaction => {
+        // if the action is goToState the destination is a stateId but we nned the state
+        let destination = interaction.action.destination;
+        nodeInteractions.push({
+            "source": node,
+            "destination": destination,
+            "trigger": interaction.trigger.type,
+            "action": interaction.action.type
+        });
+    });
+    return nodeInteractions;
+}
+// end 2/26/2020
 
 function base64ArrayBuffer(arrayBuffer) {
     let base64 = ''
