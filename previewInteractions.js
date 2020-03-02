@@ -75,8 +75,6 @@ function create() {
         }
         
         //previewDocument();
-
-        //getPreviewItems(); // method to utilize allInteractions
     }
 
     let rootNode = document.createElement("panel");
@@ -112,47 +110,6 @@ exports.hide = function (event) {
 
 async function update() {
     console.log("In showSelectionRenditions update");
-    /*
-    let images = document.querySelector("#images");
-
-    while (images.firstChild) {
-        images.removeChild(images.firstChild);
-    }
-
-    if (renditionTimer) {
-        clearTimeout(renditionTimer);
-        renditionTimer = null;
-    }
-    renditionTimer = setTimeout(
-        async () => {
-            try {
-                if (selection.items.length) {
-                    if (selection.editContext instanceof BooleanGroup) {
-                        console.log("In a BoleanGroup: Don't generate renditions");
-                    } else {
-                        console.log("Edit Context");
-                        console.log(selection.items[0]);
-
-                        //
-                        let parentArtboard = getParentArtboard(selection.items[0]);
-                        console.log("parentArtboard: " + parentArtboard);
-
-                        const renditionsFiles = await createRenditions();
-                        renditionsFiles.forEach(async renditionFile => {
-                            const arrayBuffer = await renditionFile.read({ format: fs.formats.binary });
-                            let image = document.createElement("img");
-                            let base64 = base64ArrayBuffer(arrayBuffer);
-                            image.setAttribute("src", `data:image/png;base64,${base64}`);
-                            images.appendChild(image);
-                        })    
-                    }
-                } 
-            } catch (e) {
-                console.log(e)
-            }
-        }, 100
-    );
-    */
 }
 
 
@@ -192,7 +149,10 @@ function prepareDocumentPreview () {
         artboard.children.filter(child => child instanceof SymbolInstance).forEach( component => {
 //          component.statesArray.forEach( state => {
             component.statesInfo.forEach( stateInfo => {
-                if (stateInfo.isDefaultState && ! stateInfo.isActiveState) {
+                console.log("State is defualt: " + stateInfo.isDefaultState + ", is active: " + (stateInfo.stateId === component.stateId));
+                // NOTE: stateInfo.isActiveState is no longer supports isActiveState
+                //if (stateInfo.isDefaultState && ! stateInfo.isActiveState) {
+                if (stateInfo.isDefaultState && (stateInfo.stateId !== component.stateId)) {
                 //if (state.isDefaultState && ! state.isActiveState) {
                     console.log("Potential state change to default id " + stateInfo.stateId + " of component: " + component);
                     //console.log("Potential state change to default id " + state.stateId + " of component: " + component);
@@ -231,162 +191,10 @@ function getParentArtboard(node) {
     return activeNode;
 }
 
-async function getPreviewItems() {
-    console.log("In getPreviewItems");
-
-    // requird preview renditions - array of nodes for which we need images
-
-    // start by adding all the interactions - these are key to preview
-    // get the parent artboadr for any non-artboard node 
-
-    // afterwords add any artbaords that house interactions but are not included in the interaction array of nodes ....
-
-
-    let previewArtboards = {};
-    let previewRenditions = [];
-
-    let interactions = require("interactions");
-    let homeArtboard = interactions.homeArtboard;
-    if (! homeArtboard) {
-        console.log("Failed to get homeArtboard");
-    }
-    console.log("Home Artboard: " + homeArtboard);
-
-//    previewArtboards[homeArtboard.guid] = homeArtboard;
-
-    let homeInteractionObj = {};
-    homeInteractionObj.tiggerNode = homeArtboard;
-    //interactionObj.interactions = interaction.interactions;
-    previewArtboards[homeArtboard.guid] = [homeInteractionObj];
-    //previewArtboards[homeArtboard.guid] = [homeArtboard];
-    previewRenditions.push(homeArtboard);
-
-    // now add the triggers being sure to add any containig artbaords first
-
-    console.log("iterate over the interactions");
-
-    let previewItems = [];
-    interactions.allInteractions.forEach(interaction => {
-        let triggerNode = interaction.triggerNode;
-        console.log("triggerNode: " + triggerNode);
-        if (triggerNode instanceof Artboard) {
-            let artboardGuid = triggerNode.guid;
-            if (previewArtboards[artboardGuid] === undefined) {
-                console.log("Add artboard: " + triggerNode)
-                let interactionObj = {};
-                interactionObj.tiggerNode = triggerNode;
-                interactionObj.interactions = interaction.interactions;
-                previewArtboards[artboardGuid] = [interactionObj];
-                //previewArtboards[artboardGuid] = [triggerNode];
-                previewRenditions.push(triggerNode);
-            } else {
-                // should I do something here?
-            }
-        } else {
-            let artboardContainer = getParentArtboard(triggerNode);
-            if (artboardContainer) {
-                let artboardGuid = artboardContainer.guid;
-                if (previewArtboards[artboardGuid] === undefined) {
-                    console.log("Add artboard: " + artboardContainer)
-                    let interactionObj = {};
-                    interactionObj.tiggerNode = artboardContainer;
-                    previewArtboards[artboardGuid] = [interactionObj];
-                    //previewArtboards[artboardGuid] = [artboardContainer];
-                    previewRenditions.push(artboardContainer);
-                }
-                // now add the node 
-                console.log("Add trigger node to the previewArtboards with atboard guid: " + artboardGuid);
-                console.log(JSON.stringify(previewArtboards));
-                console.log(JSON.stringify(previewArtboards[artboardGuid]));
-                let interactionObj = {};
-                interactionObj.tiggerNode = triggerNode;
-                interactionObj.interactions = interaction.interactions;
-                previewArtboards[artboardGuid] = [interactionObj];
-
-                //previewArtboards[artboardGuid].push(triggerNode);
-                console.log("Add triggerNode for rendition");
-                previewRenditions.push(triggerNode);
-            } else {
-                console.log("Failed to get the containing artboard for: " + triggerNode);
-            }
-        }
-
-        //previewItems.push(triggerNode);
-        //AddContainingArtboard(triggerNode)
-    });
-
-    /*
-    // now set up renditon requests per page to view ... we start with the home artboard
-    let homeInteractions = previewArtboards[homeArtboard.guid];
-    let homeInteractionRendtions = []
-    homeInteractions.forEach(interaction => {
-
-    })
-    */
-
-
-/*
-    function AddContainingArtboard(node) {
-        let artboardNode = getParentArtboard(node);
-        if (artboardNode && )
-    }
-*/
-
-
-    //
-    if (application.version > "25") {
-        console.log(application.version + " is gretaer than 25");
-        let doc = application.activeDocument;
-        console.log("Doc guid: " + doc.guid);
-        console.log("Doc title: " + doc.name);    
-    }
-
-
-    let imageFiles = await getPreviewRenditions(previewRenditions);
-    console.log("Have images");
-    imageFiles.forEach(imageFile => {
-        console.log("Image: " + imageFile.name);
-    });
-    
-    console.log("Exit getPreviewItems");
-}
-
-async function getPreviewRenditions(previewItems) {
-    console.log("In getPreviewRenditions");
-
-    let renditionsFiles = [];
-
-    let images = document.querySelector("#images");
-
-    while (images.firstChild) {
-        images.removeChild(images.firstChild);
-    }
-
-    try {
-        renditionsFiles = await createRenditionsFromArray(previewItems);
-        renditionsFiles.forEach(async renditionFile => {
-            const arrayBuffer = await renditionFile.read({ format: fs.formats.binary });
-            let image = document.createElement("img");
-            let base64 = base64ArrayBuffer(arrayBuffer);
-            image.setAttribute("src", `data:image/png;base64,${base64}`);
-            //image.ondragstart= "drag(event)";
-            //image.ondragstart = function(){console.log("Drag start")};
-            image.setAttribute("draggable", true);
-            image.addEventListener("Drag start", function(event){
-                console.log("Drag start");
-            });
-            images.appendChild(image);
-        })    
-    }    catch (e) {
-        console.log(e)
-    }
-    return renditionsFiles;
-}
-
 
 async function previewDocument() {
     console.log("In previewDocument");
-    let previewArtboards = {};
+//    let previewArtboards = {};
     let renditions = {};
  
     // deteriomne the first artboard tp display - home or the fitrst in the list
@@ -439,281 +247,10 @@ async function previewArtboard(artboard, renditions, previousArtboard = undefine
     for (let i=0; i < artboard.children.length; i++) {
         await handleNodeInteractions(artboard.children.at(i), renditions, images)
     }
-    //await getChildInteractions(artboard, images);
-
-    async function getChildInteractions(node, images) {
-        console.log("In getChildInteractions: " + node.name);
-        if (node.children.lenght < 1) {
-            console.log("No children");
-            return;
-        }
-        console.log("We have " + node.children.length + " children");
-        // I beleive all SymbolInstances now have states - even if just the default state
-        //let components = node.children.filter(child => child instanceof SymbolInstance && child.statesArray.length > 0);
-//        let components = node.children.filter(child => child instanceof SymbolInstance);
-        //for (let i=0; i < components.length; i++) {
-        for (let i=0; i < node.children.length; i++) {
-            console.log("Node child: " + node.children.at(i).name + " - " + node.children.at(i).guid);
-
-            if (node.children.at(i) instanceof SymbolInstance)
-            {
-                let statesArrayImage = undefined;
-                let interactionData = [];
-
-
-                //if (components[i].statesArray.length < 1) {
-                if (node.children.at(i).statesInfo.length < 1) {
-                    console.log("ERROR: SymbolInstance without states - " + node.children.at(i).name);
-                }
-
-                console.log("Create the shared stateArray img element");
-                statesArrayImage = await createImgElement(node.children.at(i), renditions);
-                statesArrayImage.setAttribute("class", "child");
-                //images.appendChild(statesArrayImage);
-
-                let componentHasIteractions = false;
-
-                console.log("Get statesInfo");
-                let statesInfo = node.children.at(i).statesInfo;
-                console.log("STATES INFO: ");
-                console.log(JSON.stringify(statesInfo));
-                //let states = components[i].statesArray.filter(state => true);
-                let states = [];
-                //statesInfo.forEach(info => {
-                for(let si = 0; si < statesInfo.length; si++) {
-                    let info = statesInfo[si];
-                    console.log("getState for stateId: " + info.stateId);
-                    let componentState = node.children.at(i).getState(info.stateId);
-                    console.log(componentState);
-
-                    console.log("State name: " + info.name);
-                    // try to do everything in this loop 2/21/2020
-                    // make the default state the rendition we display for the this SymbolInstance
-                    if (info.isDefaultState) {
-                        console.log("isDefaultState");
-                        if (! renditions[componentState.guid]) {
-                            renditions[componentState.guid] = await getnodeRenditionImage(componentState);
-                        }
-                        // set img element src to the default state rendition
-                        await updateImgElement(statesArrayImage, componentState, renditions); 
-                        // set the element name to the deafult state guid
-                        statesArrayImage.setAttribute("name", componentState.guid);
-                    }
-
-                    // identify and handle interactions
-                    if (componentState.triggeredInteractions.length > 0) {
-                        console.log("Has " + componentState.triggeredInteractions.length + " triggeredInteractions");
-                        
-                        componentHasIteractions = true;
-
-                        // make sure to get the source
-                        if (! renditions[componentState.guid]) {
-                            renditions[componentState.guid] = await getnodeRenditionImage(componentState);
-                        }
-
-                        for (let index = 0; index < componentState.triggeredInteractions.length; index++) {
-                            let trigger = componentState.triggeredInteractions[index].trigger.type;
-                            console.log("trigger: " + trigger);
-                            let action = componentState.triggeredInteractions[index].action.type;
-                            console.log("action: " + action);
-                            let destination = componentState.triggeredInteractions[index].action.destination;
-
-                            if (action === 'goToState') {
-                                console.log("destination.stateId: " + destination.stateId);
-                                destination = node.children.at(i).getState(destination.stateId);
-                            }
-
-                            console.log("destination: " + destination);
-
-                            // make sure to get the destination
-                            if (! renditions[destination.guid]) {
-                                console.log("Get rendition for guid: " + destination.guid);
-                                renditions[destination.guid] = await getnodeRenditionImage(destination);
-                            }
-
-                            console.log("Add interaction for the shared state img element");
-                            console.log("Source guid: " + componentState.guid + " trigger: " + trigger + " action: " + action);
-                            let stateMetaData = {"source": componentState, "destination": destination, "trigger": trigger, "action": action, "index": si};
-                            interactionData.push(stateMetaData);
-                        }
-                    }
-
-                    //states.push(componentState);
-                }
-                //console.log(JSON.stringify(states));
-                // add event handler for the componet 
-
-                if (componentHasIteractions) {
-                    images.appendChild(statesArrayImage);
-
-                    statesArrayImage.addEventListener("mouseenter", event => {
-                        let name = event.target.getAttribute("name");
-                        console.log("In mouseenter: " + name);
-
-
-                        let interactions = interactionData.filter( action => action.source.guid === name );
-                        if (interactions.length > 0) {
-                            event.target.style.setProperty('cursor', 'pointer');
-
-                            interactions.forEach(interaction => {
-                                if (interaction.trigger === "hover") {
-                                    console.log("Act on this");
-                                    // set img src, size and location to the detination - update metadata and name
-                                    updateImgElement(statesArrayImage, interaction.destination, renditions); 
-                                    // update metadata to reflect the desitination 
-                                    event.target.setAttribute("name", interaction.destination.guid);
-                                }
-                            });
-                        } else {
-                            console.log("interaction not found!");
-                        }
-                    });
-
-                    statesArrayImage.addEventListener("mouseleave", event => {
-                        let name = event.target.getAttribute("name");
-                        console.log("In mouseleave: " + name);
-
-                        event.target.style.setProperty('cursor', 'auto');
-
-                        let interaction = interactionData.filter( interaction => interaction.destination.guid === name && interaction.trigger === "hover")[0];
-
-                        if (interaction) {
-                            console.log("Act on this");
-                            // set img src, size and location to the detination - update metadata and name
-                            updateImgElement(statesArrayImage, interaction.source, renditions); 
-                            // update metadata to reflect the desitination 
-                            event.target.setAttribute("name", interaction.source.guid);
-                        }
-
-                    });
-
-                    statesArrayImage.addEventListener("click", event => {
-                        let name = event.target.getAttribute("name");
-                        console.log("In click: " + name);
-
-                        let interaction = interactionData.filter( action => action.source.guid === name && action.trigger === "tap")[0];
-                        console.log(JSON.stringify(interaction));
-
-                        if (interaction) {
-                            console.log("We have an interaction!");
-
-                            if (interaction.trigger === "tap") {
-                                console.log("Act on this tap");
-
-                                if (interaction.action === "goToState") {
-                                    console.log("Go to state");
-                                    // set img src, size and location to the detination - update metadata and name
-                                    updateImgElement(statesArrayImage, interaction.destination, renditions); 
-                                    // update metadata to reflect the desitination 
-                                    event.target.setAttribute("name", interaction.destination.guid);
-                                } else if (interaction.action === "goToArtboard") {
-                                    console.log("Go to artboard");
-                                    previewArtboard(interaction.destination, renditions, artboard);
-                                }
-                            }
-                        } else {
-                            console.log("interaction not found!");
-                        }
-                    });
-                } else {
-                    console.log("This is a non-interactive symbol - check children");
-                    await getChildInteractions(node.children.at(i), images);    
-                }
-            } else if (node.children.at(i).isContainer) {
-                console.log("Not a symbol but is a container");
-                await getChildInteractions(node.children.at(i), images);
-            }
-        }
-/*
-        let children = node.children.filter(child => !(child instanceof SymbolInstance));
-        for (let i=0; i < children.length; i++) {
-            console.log("Child: " + children[i].name);
-        }
-*/
-    }
 }
 
-function setSymbolSatate(component, desiredStateId) {
-    try {
-        application.editDocument(() => {
-            component.changeComponentState(desiredStateId);
-        });
-    } catch (e) {
-        console.log("Error trying to change compoenent state: " + e);
-    }
-}
 
-async function createImgElement(node, renditions) {
-    console.log("In createImgElement");
-    console.log("Node: " + node.name + " - " + node.guid);
-    console.log("parent:");
-    console.log(node.parent);
-    console.log("Node parent parent: " + node.parent.parent.name + " - " + node.parent.parent.guid);
-    console.log("Parent parent is RepeatGrid: " + (node.parent.parent instanceof RepeatGrid));
-    let image = document.createElement("img");
-    image.setAttribute("id", node.guid);
-    image.width = node.boundsInParent.width;
-    image.height = node.boundsInParent.height;
-    image.setAttribute("class", "child");
-    // setting left and top will be difficult for nested elements ...
-    console.log("Set state image top and left");
-//    image.style.left = node.boundsInParent.x + "px";
-//    image.style.top = node.boundsInParent.y + "px";
-    image.style.left = node.globalBounds.x + "px";
-    image.style.top = node.globalBounds.y + "px";
-    console.log("top: " + image.style.top + " left: " + image.style.left);
-    console.log(node.localBounds);
-    console.log(node.globalBounds);
-    console.log(node.boundsInParent);
-    console.log(node.topLeftInParent);
-    // assign source image
-    if (! renditions[node.guid]) {
-        console.log("Call getnodeRenditionImage");
-        renditions[node.guid] = await getnodeRenditionImage(node);
-    }
-    console.log("Set the img src to the rendition");
-    image.setAttribute("src", `data:image/png;base64,${renditions[node.guid]}`);
-    return image;
-}
 
-async function updateImgElement(imgElement, node, renditions) {
-    console.log("In updateImgElement: " + node.guid);
-    console.log(node);
-    imgElement.setAttribute("name", node.guid);
-    imgElement.width = node.boundsInParent.width;
-    imgElement.height = node.boundsInParent.height;
-    // setting left and top will be difficult for nested elements ...
-    // actually appears the states nodes have to postion info just 
-    // width and height so updating the top/left sets the element to 0,0
-    //TODO: supported transformed elements
-    //TODO: Hide default state view when state doens't hide it fully
-    // maybe use artboard renditions for each state permutation?
-/*
-    console.log("Set state image top and left");
-    imgElement.style.left = node.boundsInParent.x + "px";
-    imgElement.style.top = node.boundsInParent.y + "px";
-    console.log("left: " + imgElement.style.left);
-    console.log("top: " + imgElement.style.top);
-*/
-    // assign source image
-    /*
-    if (! renditions[node.guid]) {
-        renditions[node.guid] = await getnodeRenditionImage(node);
-    }
-    */
-    imgElement.setAttribute("src", `data:image/png;base64,${renditions[node.guid]}`);
-}
-
-async function getnodeRenditionImage(node) {
-    let imageFile = await createNodeRendition(node);
-    let image = await renderImage(imageFile);
-    return image;
-}
-
-async function assignImgSrc(imgElement, image) {
-    imgElement.setAttribute("src", `data:image/png;base64,${image}`);
-    return imgElement;               
-}
 
 /*
 *   Iterate over the artboards to get interactions and add interaction nodes
@@ -730,65 +267,6 @@ async function renderImage(imageFile) {
 }
 
 
-async function renderImages(renditionsFiles) {
-    console.log("In renderImages");
-    let images = document.querySelector("#images");
-    renditionsFiles.forEach(async renditionFile => {
-        const arrayBuffer = await renditionFile.read({ format: fs.formats.binary });
-        let image = document.createElement("img");
-        let base64 = base64ArrayBuffer(arrayBuffer);
-        image.setAttribute("src", `data:image/png;base64,${base64}`);
-        //image.ondragstart= "drag(event)";
-        //image.ondragstart = function(){console.log("Drag start")};
-        image.setAttribute("draggable", true);
-        image.addEventListener("Drag start", function(event){
-            console.log("Drag start");
-        });
-        images.appendChild(image);
-    })    
-}
-
-
-async function createRenditions() {
-    const folder = await fs.localFileSystem.getTemporaryFolder();
-    const arr = await selection.items.map(async item => {
-        const file = await folder.createFile(`${item.guid}.png`, { overwrite: true });
-        console.log("file: " + file.nativePath);
-        let obj = {};
-        obj.node = item;
-        obj.outputFile = file;
-        obj.type = "png";
-        obj.scale = 2;
-        return obj
-    })
-    const renditions = await Promise.all(arr);
-    const renditionResults = await application.createRenditions(renditions);
-    const renditionsFiles = renditionResults.map(a => a.outputFile);
-    return renditionsFiles;
-}
-
-
-// get renditions for each item in the array
-async function createRenditionsFromArray(nodeArray) {
-    const folder = await fs.localFileSystem.getTemporaryFolder();
-    const arr = await nodeArray.map(async item => {
-        console.log("Test: " + item.guid);
-        const file = await folder.createFile(`${item.guid}.png`, { overwrite: true });
-        console.log("file: " + file.nativePath);
-        let obj = {};
-        obj.node = item;
-        obj.outputFile = file;
-        obj.type = "png";
-        obj.scale = 2;
-        return obj;
-    })
-
-    const renditions = await Promise.all(arr);
-    const renditionResults = await application.createRenditions(renditions);
-    const renditionsFiles = renditionResults.map(a => a.outputFile);
-    return renditionsFiles;
-}
-
 // create rendition for a single node
 async function createNodeRendition(node) {
     console.log("In createNodeRendition");
@@ -796,26 +274,6 @@ async function createNodeRendition(node) {
     nodes.push(node);
     let renditions = await renditionUtils.getNodeRenditions(nodes);
     return renditions[0];
-/*
-    const folder = await fs.localFileSystem.getTemporaryFolder();
-    const nodeArray = [node];
-    const arr = await nodeArray.map(async item => {
-        console.log("Test: " + item.guid);
-        const file = await folder.createFile(`${item.guid}.png`, { overwrite: true });
-        console.log("file: " + file.nativePath);
-        let obj = {};
-        obj.node = item;
-        obj.outputFile = file;
-        obj.type = "png";
-        obj.scale = 2;
-        return obj;
-    })
-
-    const renditions = await Promise.all(arr);
-    const renditionResults = await application.createRenditions(renditions);
-    const renditionsFiles = renditionResults.map(a => a.outputFile);
-    return renditionsFiles[0];
-*/
 }
 
 // 2/26/2020
