@@ -489,19 +489,8 @@ function addInteractiveElement(symbol, interactionData, renditions, topLeftPoint
 
 async function handleNodeInteractions(node, renditions, images, topLeftInParent) {
     console.log("In handleNodeInteractions: " + node.name);
-    //console.log("node.topLeftInParent: " + JSON.stringify(node.topLeftInParent));
-    //console.log("node.topLeftInParent: " + JSON.stringify(topLeftInParent));
-    //let renditions = {};
-    //console.log("Node has interactions: " + node.triggeredInteractions);
-    /*
-    if (node.triggeredInteractions.length) {
-        console.log("Yes - node has interactions");
-    } else {
-        console.log("No - node doesn't have interactions");
-    }
-    */
+
     if (node instanceof SymbolInstance) {
-        
         let interactions = getSymbolInteractions(node);
         if (interactions.length > 0) {
             await getSymbolInteractionRenditions(interactions, renditions);
@@ -510,9 +499,7 @@ async function handleNodeInteractions(node, renditions, images, topLeftInParent)
         } else {
             for(let i = 0; i < node.children.length; i++) {
                 console.log("Call handleNodeInteractions from symbol");
-                let x = node.topLeftInParent.x + topLeftInParent.x;
-                let y= node.topLeftInParent.y + topLeftInParent.y;
-                let topLeftPoint = {"x": x, "y": y};
+                let topLeftPoint = updateTopLeft(topLeftInParent, node.topLeftInParent);
                 await handleNodeInteractions(node.children.at(i), renditions, images, topLeftPoint);
             }    
         }
@@ -526,11 +513,17 @@ async function handleNodeInteractions(node, renditions, images, topLeftInParent)
         //node.children.forEach(child => handleNodeInteractions(child, renditions, images));
         for(let i = 0; i < node.children.length; i++) {
             console.log("Call handleNodeInteractions for child");
-            let x = node.topLeftInParent.x + topLeftInParent.x;
-            let y= node.topLeftInParent.y + topLeftInParent.y;
-            let topLeftPoint = {"x": x, "y": y};
+            let topLeftPoint = updateTopLeft(topLeftInParent, node.topLeftInParent);
             await handleNodeInteractions(node.children.at(i), renditions, images, topLeftPoint);
         }
+    }
+
+    function updateTopLeft(baseTopLeft, parentTopLeft) {
+        console.log("In updateTopLeft");
+        let topLeft = {};
+        topLeft.x = baseTopLeft.x + parentTopLeft.x;
+        topLeft.y = baseTopLeft.y + parentTopLeft.y;
+        return topLeft;
     }
 }
 
