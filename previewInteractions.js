@@ -213,8 +213,7 @@ async function previewArtboard(artboard, renditions, previousArtboard = undefine
     }
     
     if (! renditions[artboard.guid]) {
-        let imageFile = await createNodeRendition(artboard);
-        renditions[artboard.guid] = await renderImage(imageFile);
+        renditions[artboard.guid] = await renditionUtils.getNodeRenditionImages([artboard]);
     }
 
     // create the artboard img element
@@ -245,7 +244,8 @@ async function previewArtboard(artboard, renditions, previousArtboard = undefine
 //        handleNodeInteractions(child, renditions, images)
 //    });
     for (let i=0; i < artboard.children.length; i++) {
-        await handleNodeInteractions(artboard.children.at(i), renditions, images)
+        console.log("artboard topLeftInParent: " + JSON.stringify(artboard.topLeftInParent))
+        await handleNodeInteractions(artboard.children.at(i), renditions, images, artboard.topLeftInParent);
     }
 }
 
@@ -261,20 +261,6 @@ async function previewArtboard(artboard, renditions, previousArtboard = undefine
 */
 
 
-async function renderImage(imageFile) {
-    const arrayBuffer = await imageFile.read({ format: fs.formats.binary });
-    return base64ArrayBuffer(arrayBuffer);
-}
-
-
-// create rendition for a single node
-async function createNodeRendition(node) {
-    console.log("In createNodeRendition");
-    let nodes = [];
-    nodes.push(node);
-    let renditions = await renditionUtils.getNodeRenditions(nodes);
-    return renditions[0];
-}
 
 // 2/26/2020
 function getActiveState(symbol) {
@@ -367,8 +353,9 @@ async function getSymbolInteractionRenditions(interactions, renditions) {
 }
 
 function addInteractiveElement(symbol, interactionData, renditions, topLeftPoint) {
-    console.log("In addInteractiveElement: " + symbol.name + " parent: " + symbol.parent.name + " parent: " + symbol.parent.parent.name);
-    console.log("topLeftPoint: " + JSON.stringify(topLeftPoint));
+    console.log("In addInteractiveElement");
+    //console.log("In addInteractiveElement: " + symbol.name + " parent: " + symbol.parent.name + " parent: " + symbol.parent.parent.name);
+    //console.log("topLeftPoint: " + JSON.stringify(topLeftPoint));
     let defaultState = getDefaultState(symbol);
     //console.log(defaultState);
     //console.log("default state guild: " + defaultState.guid);
@@ -381,15 +368,14 @@ function addInteractiveElement(symbol, interactionData, renditions, topLeftPoint
     symbolImage.height = defaultState.boundsInParent.height;
     symbolImage.setAttribute("class", "child");
     symbolImage.setAttribute("name", defaultState.guid);
-    console.log("set left top");
-    console.log("node.topLeftInParent: " + JSON.stringify(symbol.topLeftInParent));
-    console.log("node.parent.topLeftInParent: " + JSON.stringify(symbol.parent.topLeftInParent));
+
     // setting left and top will be difficult for nested elements ...
     // use the symbol and not the default state to determine top left
     // because it is the same accross all states and only the currently
     // viewed state has a parent/child hieirarchy.
     if (symbol.parent instanceof Group && symbol.parent.parent instanceof RepeatGrid) {
     //if (symbol.parent instanceof Group) {
+        /*
         console.log("In RepeatGrid");
         console.log("defaultState.globalBounds.x: " + defaultState.globalBounds.x);
         console.log("defaultState.globalBounds.y: " + defaultState.globalBounds.y);
@@ -405,12 +391,12 @@ function addInteractiveElement(symbol, interactionData, renditions, topLeftPoint
 
         //symbolImage.style.left = symbol.topLeftInParent.x + symbol.parent.topLeftInParent.x + "px";
         //symbolImage.style.top = symbol.topLeftInParent.y + symbol.parent.topLeftInParent.y + "px";
-
+        */
         symbolImage.style.left = topLeftPoint.x;
         symbolImage.style.top = topLeftPoint.y;
 
     } else {
-        console.log("Not In RepeatGrid");
+        //console.log("Not In RepeatGrid");
         symbolImage.style.left = symbol.boundsInParent.x + "px";
         symbolImage.style.top = symbol.boundsInParent.y + "px";
     }
@@ -501,18 +487,19 @@ function addInteractiveElement(symbol, interactionData, renditions, topLeftPoint
     return symbolImage;
 }
 
-async function handleNodeInteractions(node, renditions, images, topLeftInParent = {"x":0,"y":0}) {
+async function handleNodeInteractions(node, renditions, images, topLeftInParent) {
     console.log("In handleNodeInteractions: " + node.name);
-    console.log("node.topLeftInParent: " + JSON.stringify(node.topLeftInParent));
-    console.log("node.topLeftInParent: " + JSON.stringify(topLeftInParent));
+    //console.log("node.topLeftInParent: " + JSON.stringify(node.topLeftInParent));
+    //console.log("node.topLeftInParent: " + JSON.stringify(topLeftInParent));
     //let renditions = {};
-    console.log("Node has interactions: " + node.triggeredInteractions);
+    //console.log("Node has interactions: " + node.triggeredInteractions);
+    /*
     if (node.triggeredInteractions.length) {
         console.log("Yes - node has interactions");
     } else {
         console.log("No - node doesn't have interactions");
     }
-
+    */
     if (node instanceof SymbolInstance) {
         
         let interactions = getSymbolInteractions(node);
@@ -564,56 +551,5 @@ function getNodeInteractions(node) {
 }
 // end 2/26/2020
 
-function base64ArrayBuffer(arrayBuffer) {
-    let base64 = ''
-    const encodings = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/'
-
-    const bytes = new Uint8Array(arrayBuffer)
-    const byteLength = bytes.byteLength
-    const byteRemainder = byteLength % 3
-    const mainLength = byteLength - byteRemainder
-
-    let a, b, c, d
-    let chunk
-
-    // Main loop deals with bytes in chunks of 3
-    for (var i = 0; i < mainLength; i = i + 3) {
-        // Combine the three bytes into a single integer
-        chunk = (bytes[i] << 16) | (bytes[i + 1] << 8) | bytes[i + 2]
-
-        // Use bitmasks to extract 6-bit segments from the triplet
-        a = (chunk & 16515072) >> 18 // 16515072 = (2^6 - 1) << 18
-        b = (chunk & 258048) >> 12 // 258048   = (2^6 - 1) << 12
-        c = (chunk & 4032) >> 6 // 4032     = (2^6 - 1) << 6
-        d = chunk & 63               // 63       = 2^6 - 1
-
-        // Convert the raw binary segments to the appropriate ASCII encoding
-        base64 += encodings[a] + encodings[b] + encodings[c] + encodings[d]
-    }
-
-    // Deal with the remaining bytes and padding
-    if (byteRemainder == 1) {
-        chunk = bytes[mainLength]
-
-        a = (chunk & 252) >> 2 // 252 = (2^6 - 1) << 2
-
-        // Set the 4 least significant bits to zero
-        b = (chunk & 3) << 4 // 3   = 2^2 - 1
-
-        base64 += encodings[a] + encodings[b] + '=='
-    } else if (byteRemainder == 2) {
-        chunk = (bytes[mainLength] << 8) | bytes[mainLength + 1]
-
-        a = (chunk & 64512) >> 10 // 64512 = (2^6 - 1) << 10
-        b = (chunk & 1008) >> 4 // 1008  = (2^6 - 1) << 4
-
-        // Set the 2 least significant bits to zero
-        c = (chunk & 15) << 2 // 15    = 2^4 - 1
-
-        base64 += encodings[a] + encodings[b] + encodings[c] + '='
-    }
-
-    return base64
-}
 
 exports.update = update;
